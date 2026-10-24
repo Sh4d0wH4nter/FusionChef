@@ -39,6 +39,9 @@ test/fake-endpoint.test.js  Integration tests against fake model servers
 - Item shape: `{id, name, count, weight_g, pack, food, added, expires, guessed}`. `pack` is a display label (e.g. "carton of 6") that replaces the quantity text until the amount is edited.
 - Defaults: `FC.applyDefaults(parsedItem)` fills missing amounts and shelf life from `defaults.json`; user-stated values always win.
 - Escape any model or user text with `FC.esc` before putting it in `innerHTML`.
+- Styling: all colours, type sizes, spacing and radii are tokens at the top of `style.css` (light and dark). Use the tokens, not raw values. Ink (`--primary`) is the only "brand" colour; the freshness colours (`--now/--soon/--ok`, plus `-ring` variants for strokes) and macro colours (`--protein/--carbs/--fat`) carry meaning, so do not reuse them decoratively. No gradients, glows or emoji in the UI; icons are inline SVG.
+- Breakpoints: 1024 (board to 2 lanes), 860 (nutrition/recipe to one column), 640 (phone: dialogs become bottom sheets, action bar spans the width). Check 320px wide for sideways overflow.
+- Clickable cards (`.item`, `.rcard`) are focusable and toggle on Enter/Space; keep that when changing their markup.
 - Voice = browser SpeechRecognition (`browserListen` in `main.js`); transcript goes through the normal text parse path. Audio upload only if `OPENROUTER_AUDIO_MODEL` is set.
 
 ## Code style
@@ -48,7 +51,7 @@ test/fake-endpoint.test.js  Integration tests against fake model servers
 
 ## Testing
 - `npm test` spawns the server against fake servers (OpenRouter request shape, schema and model fallback, nonsense recipes rejected, legacy Vertex path). No real model, no browser, no microphone.
-- UI changes were checked ad hoc with headless Chromium (Playwright) and the `/api/parse` response mocked; there is no committed UI test yet.
+- UI changes were checked ad hoc with headless Chromium (Playwright) at 320 to 1440px wide, light and dark, with seeded `localStorage` and `/api/*` mocked; there is no committed UI test yet.
 - Never verified against a real OpenRouter key from the build environment. Real-model quirks (empty replies from reasoning models, rate limits, `:free` models being retired) are the most likely source of bugs; use the `[ai]` log lines to diagnose.
 
 ## Git / workflow

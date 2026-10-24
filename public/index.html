@@ -2,55 +2,71 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
 <title>FusionChef</title>
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div><h1>Fusion<span>Chef</span></h1><div class="sub" id="date"></div></div>
-    <div class="chips" id="chips"></div>
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/"><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="m-track" cx="12" cy="12" r="9" fill="none" stroke-width="3"/><circle class="m-arc" cx="12" cy="12" r="9" fill="none" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 57" transform="rotate(-90 12 12)"/></svg>FusionChef</a>
     <div id="nav"></div>
-  </header>
+  </div>
+</header>
 
-  <section class="panel inbar">
-    <button class="mic" id="mic" type="button" title="Tap to record, tap again to add" aria-label="Record ingredients">🎙</button>
+<main class="wrap">
+  <div class="pagehead">
+    <div><h1>Kitchen</h1><p class="sub" id="date"></p></div>
+    <div class="chips" id="chips" aria-label="Summary"></div>
+  </div>
+
+  <section class="panel inbar" aria-label="Add food">
+    <button class="mic" id="mic" type="button" title="Tap to record, tap again to add" aria-label="Record ingredients">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+    </button>
     <form id="f" autocomplete="off">
+      <label for="txt" class="visually-hidden">What did you buy?</label>
       <input id="txt" placeholder='Say or type: "2 eggs and 600g chicken, expires Friday"'>
       <button class="btn" id="add">Add</button>
     </form>
-    <div class="status" id="status">Tap the mic and list what you bought: name, how many (or weight), and when it expires.</div>
+    <div class="status" id="status" role="status" aria-live="polite">Tap the mic and list what you bought: name, how many (or weight), and when it expires.</div>
   </section>
 
   <div class="board" id="board"></div>
-</div>
+</main>
 
-<div class="panel actionbar" id="bar">
+<div class="actionbar" id="bar" role="region" aria-label="Selection">
   <span id="count"></span>
   <button class="ghost" id="clear" type="button">Clear</button>
-  <button class="btn" id="gen" type="button">✨ Generate recipes</button>
+  <button class="btn" id="gen" type="button">Generate recipes</button>
 </div>
 
-<dialog id="dlg">
-  <div class="dh"><h2>Recipe ideas</h2><button class="ghost" id="dclose" type="button">Close</button></div>
+<dialog id="dlg" aria-labelledby="dlg-title">
+  <div class="dh">
+    <div><h2 id="dlg-title">Recipe ideas</h2><p class="sub">Ideas built around what you selected.</p></div>
+    <button class="iconbtn" id="dclose" type="button" aria-label="Close"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </div>
   <div id="dbody"></div>
 </dialog>
 
-<dialog id="edlg" style="width:min(420px,94vw)">
-  <form id="eform" method="dialog" style="display:grid;gap:10px">
-    <h2 style="margin:0">Edit item</h2>
-    <label>Name <input id="e-name" required></label>
-    <label>Count <input id="e-count" type="number" min="0" step="any"></label>
-    <label>Weight (grams) <input id="e-weight" type="number" min="0" step="any"></label>
-    <label>Use by <input id="e-exp" type="date" required></label>
-    <div><button class="btn" type="submit">Save</button> <button class="ghost" id="e-cancel" type="button">Cancel</button></div>
+<dialog id="edlg" aria-labelledby="edlg-title">
+  <form id="eform" class="eform" method="dialog">
+    <h2 class="dlg-title" id="edlg-title">Edit item</h2>
+    <label class="field">Name <input id="e-name" required></label>
+    <div class="pair">
+      <label class="field">Count <input id="e-count" type="number" min="0" step="any" inputmode="decimal" placeholder="e.g. 6"></label>
+      <label class="field">Weight (g) <input id="e-weight" type="number" min="0" step="any" inputmode="decimal" placeholder="e.g. 500"></label>
+    </div>
+    <label class="field">Use by <input id="e-exp" type="date" required></label>
+    <div class="row-end"><button class="ghost" id="e-cancel" type="button">Cancel</button><button class="btn" type="submit">Save changes</button></div>
   </form>
 </dialog>
 
-<footer style="margin:28px 0 12px;font-size:12px;color:var(--mute);text-align:center">
-  <label><input type="checkbox" id="devtoggle"> Developer mode</label>
-  <span id="devbox" hidden> · <span id="devinfo"></span> <button class="ghost" id="nextday" type="button">Next day ▶</button> <button class="ghost" id="resetday" type="button">Reset</button></span>
+<footer class="devbar">
+  <label class="switch"><input type="checkbox" id="devtoggle"> Developer mode</label>
+  <span id="devbox" hidden><span id="devinfo"></span> <button class="ghost" id="nextday" type="button">Next day</button> <button class="ghost" id="resetday" type="button">Reset</button></span>
 </footer>
 
 <script src="/js/common.js"></script>

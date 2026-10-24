@@ -2,39 +2,63 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
 <title>Nutrition · FusionChef</title>
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div><h1>Nutrition</h1><div class="sub" id="date"></div></div>
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/"><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="m-track" cx="12" cy="12" r="9" fill="none" stroke-width="3"/><circle class="m-arc" cx="12" cy="12" r="9" fill="none" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 57" transform="rotate(-90 12 12)"/></svg>FusionChef</a>
     <div id="nav"></div>
-  </header>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="pagehead">
+    <div><h1>Nutrition</h1><p class="sub" id="date"></p></div>
+  </div>
   <div class="grid2">
-    <section class="panel today">
-      <div class="bigring" id="bigring"></div>
-      <div class="bars" id="bars"></div>
-      <label class="sub">Daily goal <input id="goal" type="number" min="500" step="50" style="width:90px"> kcal</label>
-      <form class="logform" id="lf" autocomplete="off">
-        <input id="ln" placeholder="Log food or meal" required>
-        <input id="lk" type="number" min="0" placeholder="kcal" required>
-        <div class="macro-in">
-          <input id="lp" type="number" min="0" placeholder="protein g">
-          <input id="lc" type="number" min="0" placeholder="carbs g">
-          <input id="lfat" type="number" min="0" placeholder="fat g">
+    <div class="stack">
+      <section class="panel card today" aria-labelledby="today-h">
+        <div class="card-head" style="margin:0"><h2 class="section-title" id="today-h">Today</h2></div>
+        <div class="ringrow">
+          <div class="bigring" id="bigring"></div>
+          <div class="ringside">
+            <div class="big" id="ringsummary"></div>
+            <label class="goal">Goal <input id="goal" type="number" min="500" step="50" inputmode="numeric"> kcal</label>
+          </div>
         </div>
-        <button class="btn">Add to today</button>
-      </form>
-      <div class="loglist" id="loglist"></div>
-    </section>
-    <section>
-      <h2 style="margin:0 0 12px">Saved recipes</h2>
+        <div class="bars" id="bars"></div>
+      </section>
+      <section class="panel card" aria-labelledby="log-h">
+        <div class="card-head"><h2 class="section-title" id="log-h">Log food</h2><span class="sub" style="font-size:12px">Macros in grams, optional</span></div>
+        <form class="logform" id="lf" autocomplete="off">
+          <label class="visually-hidden" for="ln">Food or meal</label>
+          <input id="ln" placeholder="Food or meal" required>
+          <label class="visually-hidden" for="lk">Calories</label>
+          <input id="lk" type="number" min="0" placeholder="kcal" inputmode="numeric" required>
+          <div class="macro-in">
+            <input id="lp" type="number" min="0" placeholder="Protein" aria-label="Protein (g)" inputmode="numeric">
+            <input id="lc" type="number" min="0" placeholder="Carbs" aria-label="Carbs (g)" inputmode="numeric">
+            <input id="lfat" type="number" min="0" placeholder="Fat" aria-label="Fat (g)" inputmode="numeric">
+          </div>
+          <button class="btn">Add to today</button>
+        </form>
+      </section>
+      <section class="panel card" aria-labelledby="eaten-h">
+        <div class="card-head"><h2 class="section-title" id="eaten-h">Eaten today</h2></div>
+        <div class="loglist" id="loglist"></div>
+      </section>
+    </div>
+    <section aria-labelledby="saved-h">
+      <div class="card-head"><h2 class="section-title" id="saved-h">Saved recipes</h2></div>
       <div class="rgrid" id="recipes"></div>
     </section>
   </div>
-</div>
+</main>
 <script src="/js/common.js"></script>
 <script src="/js/nutrition.js"></script>
 </body>
