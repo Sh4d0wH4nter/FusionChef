@@ -8,12 +8,13 @@
 
   $("nav").innerHTML = FC.nav("main");
   const stage = (d) => (d <= 2 ? "now" : d <= 7 ? "soon" : "ok");
+  const CHECK = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3 4.7-4.9"/></svg>';
 
   function ringHTML(it, d) {
     const total = Math.max(1, Math.round((parse(it.expires) - parse(it.added)) / 864e5));
     const u = Math.abs(d);
-    const label = d < 0 ? `<span>${u}</span><small>DAYS OVER</small>` : d === 0 ? `<span>0</span><small>TODAY</small>` : `<span>${u}</span><small>${u === 1 ? "DAY" : "DAYS"}</small>`;
-    return `<div class="ring"><svg viewBox="0 0 54 54"><circle class="bg" cx="27" cy="27" r="22"/><circle class="fg" cx="27" cy="27" r="22" ${ring(d / total, 22)}/></svg><b>${label}</b></div>`;
+    const label = d < 0 ? `<span>${u}</span><small>over</small>` : d === 0 ? `<span>0</span><small>today</small>` : `<span>${u}</span><small>${u === 1 ? "day" : "days"}</small>`;
+    return `<div class="ring" title="${d < 0 ? `${u} ${u === 1 ? "day" : "days"} past use-by` : d === 0 ? "Use by today" : `${u} ${u === 1 ? "day" : "days"} left`}"><svg viewBox="0 0 54 54"><circle class="bg" cx="27" cy="27" r="22"/><circle class="fg" cx="27" cy="27" r="22" ${ring(d / total, 22)}/></svg><b class="${u >= 100 ? "long" : ""}">${label}</b></div>`;
   }
 
   function render() {
@@ -21,30 +22,44 @@
     renderDev();
     const rows = items.map((it) => ({ it, d: daysUntil(it.expires) })).sort((a, b) => a.d - b.d);
     const lanes = [["now", "Eat now", "Past date or within 2 days"], ["soon", "Use soon", "3 to 7 days left"], ["ok", "Plenty of time", "More than a week"]];
-    $("chips").innerHTML = lanes.map(([k, l]) => `<div class="chip" style="--c:var(--${k})"><i></i><b>${rows.filter((x) => stage(x.d) === k).length}</b>${l}</div>`).join("");
-    $("board").innerHTML = "";
-    for (const [k, title, hint] of lanes) {
+    $("chips").innerHTML = rows.length ? lanes.map(([k, l]) => `<div class="chip" style="--c:var(--${k}-ring)"><i></i><b>${rows.filter((x) => stage(x.d) === k).length}</b>${l}</div>`).join("") : "";
+    $("board").innerHTML = rows.length ? "" : `<div class="panel empty-hero" style="grid-column:1/-1">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16" fill="none" stroke="var(--line-2)" stroke-width="4"/><circle cx="20" cy="20" r="16" fill="none" stroke="var(--ok-ring)" stroke-width="4" stroke-linecap="round" stroke-dasharray="70 101" transform="rotate(-90 20 20)"/></svg>
+      <h2>Nothing tracked yet</h2>
+      <p>Add what you bought with the bar above. Each item gets a countdown to its use-by date and moves into "Eat now" when it needs using.</p></div>`;
+    for (const [k, title, hint] of rows.length ? lanes : []) {
       const list = rows.filter((x) => stage(x.d) === k);
       const lane = document.createElement("section");
-      lane.className = "lane"; lane.style.setProperty("--c", `var(--${k})`);
-      lane.innerHTML = `<h2><i></i>${title}<em>${list.length}</em></h2>`;
-      if (!list.length) lane.insertAdjacentHTML("beforeend", `<div class="empty">${hint}: nothing here</div>`);
+      lane.className = "lane"; lane.style.setProperty("--c", `var(--${k}-ring)`);
+      lane.innerHTML = `<div class="lane-head"><h2><i></i>${title} <em>${list.length}</em></h2><small>${hint}</small></div>`;
+      if (!list.length) lane.insertAdjacentHTML("beforeend", `<div class="empty">Nothing here</div>`);
       for (const { it, d } of list) {
-        const kcal = itemKcal(it);
+        const kcal = itemKcal(it), on = selected.has(it.id);
         const el = document.createElement("article");
-        el.className = `item panel ${k} ${selected.has(it.id) ? "sel" : ""}`;
+        el.className = `item panel ${k} ${d < 0 ? "over" : ""} ${on ? "sel" : ""}`;
+        el.tabIndex = 0; el.setAttribute("role", "button"); el.setAttribute("aria-pressed", on);
         el.innerHTML = `${ringHTML(it, d)}
-          <div class="name">${esc(it.name)} <span class="qty">${esc(qtyLabel(it))}</span></div>
-          <div class="check">${selected.has(it.id) ? "✓" : ""}</div>
-          <div class="meta">${kcal ? `≈ ${kcal} kcal · ` : ""}use by ${parse(it.expires).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</div>`;
-        const rm = document.createElement("button");
-        rm.className = "x"; rm.textContent = "remove";
-        rm.onclick = (e) => { e.stopPropagation(); selected.delete(it.id); items = items.filter((x) => x.id !== it.id); save("items", items); render(); };
+          <div class="item-body">
+            <div class="name">${esc(it.name)} <span class="qty">${esc(qtyLabel(it))}</span></div>
+            <div class="meta">${kcal ? `≈ ${kcal} kcal · ` : ""}Use by ${parse(it.expires).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</div>
+            <div class="actions"></div>
+          </div>
+          <div class="check">${on ? CHECK : ""}</div>`;
         const ed = document.createElement("button");
-        ed.className = "x"; ed.textContent = "edit"; ed.style.marginRight = "10px";
+        ed.type = "button"; ed.className = "x"; ed.textContent = "Edit";
         ed.onclick = (e) => { e.stopPropagation(); openEdit(it); };
-        el.querySelector(".meta").after(rm); el.querySelector(".meta").after(ed);
+        const rm = document.createElement("button");
+        rm.type = "button"; rm.className = "x danger"; rm.textContent = "Remove";
+        rm.onclick = (e) => { e.stopPropagation(); selected.delete(it.id); items = items.filter((x) => x.id !== it.id); save("items", items); render(); };
+        el.querySelector(".actions").append(ed, rm);
         el.onclick = () => { selected.has(it.id) ? selected.delete(it.id) : selected.add(it.id); render(); };
+        // The card is the selection toggle, so it has to work from the keyboard too.
+        el.onkeydown = (e) => {
+          if (e.target !== el || (e.key !== "Enter" && e.key !== " ")) return;
+          e.preventDefault(); el.click();
+          requestAnimationFrame(() => document.querySelector(`[data-item="${it.id}"]`)?.focus());
+        };
+        el.dataset.item = it.id;
         lane.appendChild(el);
       }
       $("board").appendChild(lane);
@@ -155,28 +170,35 @@
   $("gen").onclick = async () => {
     const chosen = items.filter((i) => selected.has(i.id));
     generated = []; picked.clear();
-    $("dbody").innerHTML = `<p class="sub"><span class="spin"></span>Asking the AI for ideas using ${chosen.map((c) => esc(c.name)).join(", ")}…</p>`;
+    $("dbody").innerHTML = `<p class="loading-line"><span class="spin"></span>Asking the AI for ideas using ${chosen.map((c) => esc(c.name)).join(", ")}…</p>
+      <div class="rcards" aria-hidden="true">${'<div class="skel"></div>'.repeat(3)}</div><div style="height:24px"></div>`;
     $("dlg").showModal();
     try {
       const { recipes } = await api("/api/recipes", { ingredients: chosen.map((c) => ({ name: c.name, qty: qtyLabel(c) })) });
       generated = recipes.map((r) => ({ ...r, id: uid() }));
       drawRecipes();
-    } catch (e) { $("dbody").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+    } catch (e) {
+      $("dbody").innerHTML = `<div class="errbox" role="alert"><b>Couldn't get recipe ideas</b><p>${esc(e.message)}</p><button class="ghost" id="retry" type="button">Try again</button></div>`;
+      $("retry").onclick = () => $("gen").click();
+    }
   };
   function drawRecipes() {
-    $("dbody").innerHTML = `<div class="sub">Pick the ones you want to save to your Nutrition page.</div>
-      <div class="rcards">${generated.map((r) => {
-        const n = r.nutrition || {};
-        return `<div class="rcard ${picked.has(r.id) ? "sel" : ""}" data-id="${r.id}">
-          <div class="check">${picked.has(r.id) ? "✓" : ""}</div>
-          <div><b>${esc(r.title)}</b> <span class="tag">${esc(r.cuisine)}</span></div>
+    $("dbody").innerHTML = `<div class="rcards">${generated.map((r) => {
+        const n = r.nutrition || {}, on = picked.has(r.id);
+        return `<div class="rcard ${on ? "sel" : ""}" data-id="${r.id}" tabindex="0" role="checkbox" aria-checked="${on}">
+          <div class="check">${on ? CHECK : ""}</div>
+          <div class="rcard-title"><b>${esc(r.title)}</b> <span class="tag">${esc(r.cuisine)}</span></div>
           <p>${esc(r.summary)}</p>
-          <div class="macros"><span>${n.calories ?? "?"} kcal</span><span>${(r.prep_mins || 0) + (r.cook_mins || 0)} min</span><span>serves ${r.servings ?? "?"}</span></div>
+          <div class="facts-line"><span>${n.calories ?? "?"} kcal</span><span>${(r.prep_mins || 0) + (r.cook_mins || 0)} min</span><span>Serves ${r.servings ?? "?"}</span></div>
         </div>`;
       }).join("")}</div>
-      <button class="btn" id="saveSel" ${picked.size ? "" : "disabled"}>Save ${picked.size || ""} to Nutrition</button>
-      <button class="ghost" id="regen" type="button" style="margin-left:8px">Generate more</button>`;
-    $("dbody").querySelectorAll(".rcard").forEach((el) => (el.onclick = () => { const id = el.dataset.id; picked.has(id) ? picked.delete(id) : picked.add(id); drawRecipes(); }));
+      <div class="dfoot"><span class="hint">${picked.size ? `${picked.size} selected` : "Select the ones to keep"}</span>
+        <button class="ghost" id="regen" type="button" style="height:40px">Generate more</button>
+        <button class="btn" id="saveSel" ${picked.size ? "" : "disabled"}>Save ${picked.size || ""} to Nutrition</button></div>`;
+    $("dbody").querySelectorAll(".rcard").forEach((el) => {
+      el.onclick = () => { const id = el.dataset.id; picked.has(id) ? picked.delete(id) : picked.add(id); drawRecipes(); $("dbody").querySelector(`[data-id="${id}"]`)?.focus(); };
+      el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el.click(); } };
+    });
     $("regen").onclick = () => $("gen").click();
     $("saveSel").onclick = () => {
       const saved = load("recipes", []);

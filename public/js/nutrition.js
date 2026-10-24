@@ -7,7 +7,7 @@
   let log = load("log", []);
   let goal = load("goal", 2000);
   // Rough default split for the macro bars; the goals are easy to make editable later.
-  const MACROS = [["Protein", "p", 0.25 / 4, "var(--ok)"], ["Carbs", "c", 0.5 / 4, "var(--soon)"], ["Fat", "f", 0.25 / 9, "var(--accent2)"]];
+  const MACROS = [["Protein", "p", 0.25 / 4, "var(--protein)"], ["Carbs", "c", 0.5 / 4, "var(--carbs)"], ["Fat", "f", 0.25 / 9, "var(--fat)"]];
 
   function render() {
     const todays = log.filter((l) => l.date === today());
@@ -15,26 +15,29 @@
     const kcal = sum("kcal"), over = kcal > goal;
     $("bigring").className = `bigring ${over ? "over" : ""}`;
     $("bigring").innerHTML = `<svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="42"/><circle class="fg" cx="50" cy="50" r="42" ${ring(kcal / goal, 42)}/></svg>
-      <div><b>${kcal}</b><small>${over ? `${kcal - goal} over` : `${goal - kcal} left`} of ${goal} kcal</small></div>`;
+      <div><b>${kcal}</b><small>kcal eaten</small></div>`;
+    $("ringsummary").className = `big ${over ? "over" : ""}`;
+    $("ringsummary").innerHTML = `${over ? `${kcal - goal} kcal over` : `${goal - kcal} kcal left`}`;
     $("bars").innerHTML = MACROS.map(([l, k, perKcal, c]) => {
       const g = Math.round(sum(k)), target = Math.round(goal * perKcal);
       return `<div class="bar" style="--c:${c}"><span>${l}</span><div><i style="--w:${Math.min(100, (g / target) * 100)}%"></i></div><span>${g}/${target} g</span></div>`;
     }).join("");
     $("goal").value = goal;
     $("loglist").innerHTML = todays.length
-      ? todays.map((l) => `<div><span>${esc(l.name)}</span><span>${l.kcal} kcal <button class="x" data-id="${l.id}">remove</button></span></div>`).join("")
-      : '<div class="sub">Nothing logged today.</div>';
+      ? todays.map((l) => `<div><span>${esc(l.name)}</span><span>${l.kcal} kcal <button class="x danger" type="button" data-id="${l.id}" aria-label="Remove ${esc(l.name)}">Remove</button></span></div>`).join("")
+      : '<div class="sub">Nothing logged yet today. Add a meal above, or log a recipe after cooking it.</div>';
 
     const recipes = load("recipes", []);
-    $("recipes").innerHTML = recipes.length ? "" : '<div class="empty" style="grid-column:1/-1">No saved recipes yet. Generate some on the Kitchen page.</div>';
+    $("saved-h").textContent = recipes.length ? `Saved recipes · ${recipes.length}` : "Saved recipes";
+    $("recipes").innerHTML = recipes.length ? "" : '<div class="empty" style="grid-column:1/-1">No saved recipes yet. Select a few items on the <a href="/">Kitchen</a> page and generate some.</div>';
     for (const r of recipes) {
       const n = r.nutrition || {};
       const a = document.createElement("a");
       a.className = "panel rtile"; a.href = `/recipe.html?id=${encodeURIComponent(r.id)}`; a.target = "_blank";
-      a.innerHTML = `<div class="row"><span class="tag">${esc(r.cuisine)}</span><button class="x" data-del="${r.id}">delete</button></div>
+      a.innerHTML = `<div class="row"><span class="tag">${esc(r.cuisine)}</span><button class="x danger" type="button" data-del="${r.id}">Delete</button></div>
         <h3>${esc(r.title)}</h3>
-        <div class="macros"><span style="--c:var(--accent)">${n.calories ?? "?"} kcal</span><span style="--c:var(--ok)">P ${n.protein_g ?? "?"}g</span><span style="--c:var(--soon)">C ${n.carbs_g ?? "?"}g</span><span style="--c:var(--accent2)">F ${n.fat_g ?? "?"}g</span></div>
-        <div class="sub" style="font-size:12px">per serving · ${(r.prep_mins || 0) + (r.cook_mins || 0)} min</div>`;
+        <div class="macros"><span class="kcal">${n.calories ?? "?"} kcal</span><span style="--c:var(--protein)">P ${n.protein_g ?? "?"}g</span><span style="--c:var(--carbs)">C ${n.carbs_g ?? "?"}g</span><span style="--c:var(--fat)">F ${n.fat_g ?? "?"}g</span></div>
+        <div class="foot">Per serving · ${(r.prep_mins || 0) + (r.cook_mins || 0)} min</div>`;
       $("recipes").appendChild(a);
     }
   }

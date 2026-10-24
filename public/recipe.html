@@ -2,12 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f5f2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121211" media="(prefers-color-scheme: dark)">
 <title>Recipe · FusionChef</title>
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<div class="wrap" id="app"></div>
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/"><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="m-track" cx="12" cy="12" r="9" fill="none" stroke-width="3"/><circle class="m-arc" cx="12" cy="12" r="9" fill="none" stroke-width="3" stroke-linecap="round" stroke-dasharray="40 57" transform="rotate(-90 12 12)"/></svg>FusionChef</a>
+    <div id="nav"></div>
+  </div>
+</header>
+
+<main class="wrap" id="app"></main>
 <script src="/js/common.js"></script>
 <script src="/js/recipe.js"></script>
 </body>
