@@ -80,7 +80,7 @@ const today = () => iso(now());
   async function api(path, body, opts = {}) {
     const ctl = new AbortController();
     let why = null;
-    const timer = setTimeout(() => { why = "timeout"; ctl.abort(); }, opts.timeoutMs || 75e3);
+    const timer = setTimeout(() => { why = "timeout"; ctl.abort(); }, opts.timeoutMs || 105e3);
     const onAbort = () => { why = "cancel"; ctl.abort(); };
     opts.signal?.addEventListener("abort", onAbort);
     try {

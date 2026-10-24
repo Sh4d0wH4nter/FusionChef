@@ -50,7 +50,7 @@ test/fake-endpoint.test.js  Integration tests against fake model servers
 - Keep the README user-facing and this file developer-facing; update both when behaviour changes.
 
 ## Testing
-- `api()` in `common.js` has a 75 s client timeout and takes an AbortSignal (Cancel buttons).
+- `api()` in `common.js` has a 105 s client timeout and takes an AbortSignal (Cancel buttons).
 - `npm test` spawns the server against fake servers (OpenRouter request shape, schema and model fallback, nonsense recipes rejected, legacy Vertex path). No real model, no browser, no microphone.
 - UI changes were checked ad hoc with headless Chromium (Playwright) at 320 to 1440px wide, light and dark, with seeded `localStorage` and `/api/*` mocked; there is no committed UI test yet.
 - Never verified against a real OpenRouter key from the build environment. Real-model quirks (empty replies from reasoning models, rate limits, `:free` models being retired) are the most likely source of bugs; use the `[ai]` log lines to diagnose.
