@@ -23,7 +23,7 @@ npm start              # open http://localhost:3000 in Chrome
 | `OPENROUTER_MODEL` | Optional. Leave unset to use the built-in pool of fast free models. |
 | `OPENROUTER_FALLBACK_MODELS` | Optional comma-separated ids tried after the main one. Leave unset to use the rest of the pool. |
 | `OPENROUTER_AUDIO_MODEL` | Optional. Leave unset: voice uses the browser's speech-to-text instead. |
-| `OPENROUTER_MAX_TOKENS` | Optional, default 8192. |
+| `OPENROUTER_MAX_TOKENS` / `OPENROUTER_REASONING` / `OPENROUTER_STRUCTURED=1` | Optional extras, off by default: a token cap, a reasoning effort (`low`/`medium`/`high`), and JSON-schema output mode. Requests are kept as plain as possible because some free providers reject or stall on them. |
 | `OPENROUTER_TIMEOUT_MS` / `OPENROUTER_DEADLINE_MS` / `OPENROUTER_HEDGE_MS` | Optional. Per-model time limit (25 s), whole-request limit (60 s), and how long before a second model is started in parallel (10 s). |
 | `PORT` | Optional, default 3000. |
 

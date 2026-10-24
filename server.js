@@ -41,7 +41,8 @@ const OR = env.OPENROUTER_API_KEY
       deadlineMs: Number(env.OPENROUTER_DEADLINE_MS) || 60e3, // whole request, then give up with a clear error
       hedgeMs: Number(env.OPENROUTER_HEDGE_MS) || 10e3, // if the first model is still silent after this, start the next one in parallel
       parallel: Number(env.OPENROUTER_PARALLEL) || 2, coolMs: Number(env.OPENROUTER_COOLDOWN_MS) || 3 * 60e3,
-      audioModel: env.OPENROUTER_AUDIO_MODEL || null, maxTokens: Number(env.OPENROUTER_MAX_TOKENS) || 8192 }
+      audioModel: env.OPENROUTER_AUDIO_MODEL || null, maxTokens: Number(env.OPENROUTER_MAX_TOKENS) || null,
+      reasoning: env.OPENROUTER_REASONING || null, structured: env.OPENROUTER_STRUCTURED === "1" }
   : null;
 const ENDPOINT = !OR && VERTEX && env.VERTEX_ENDPOINT_ID
   ? { id: env.VERTEX_ENDPOINT_ID, dns: env.VERTEX_ENDPOINT_DNS || null,
@@ -229,9 +230,12 @@ async function orPost(body, signal) {
 }
 async function gemmaOpenRouter(model, parts, schema, signal) {
   const hasAudio = parts.some((p) => p.inline_data);
-  const body = { model, temperature: 0.4, max_tokens: OR.maxTokens,
+  // Keep the request as plain as Cookbook-Maker-v2's working one: model, temperature, messages. Extras (reasoning, response_format,
+  // max_tokens) are opt-in because several free providers reject or stall on them.
+  const body = { model, temperature: 0.3,
     messages: [{ role: "user", content: hasAudio ? toChatContent(parts, "input_audio") : parts.map((p) => p.text).join("\n\n") }] };
-  body.reasoning = { effort: "low" }; // reasoning models otherwise burn max_tokens thinking and return an empty answer
+  if (OR.maxTokens) body.max_tokens = OR.maxTokens;
+  if (OR.reasoning) body.reasoning = { effort: OR.reasoning };
   if (schema) body.response_format = { type: "json_schema", json_schema: { name: "result", strict: false, schema: toJsonSchema(schema) } };
   const j = await orPost(body, signal);
   // OpenRouter can answer HTTP 200 with an error object (e.g. upstream provider failure).
@@ -289,7 +293,7 @@ const orNote = (model, ok, ms, kind) => {
 };
 async function orTry(model, parts, schema, validate, signal) {
   let last;
-  for (const sch of noSchema.has(model) ? [null] : [schema, null]) {
+  for (const sch of noSchema.has(model) || !OR.structured ? [null] : [schema, null]) {
     const tag = `${model}${sch ? " (schema)" : ""}`, t0 = Date.now();
     try {
       const { text, finish } = await gemmaOpenRouter(model, parts, sch, signal);
