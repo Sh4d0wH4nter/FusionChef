@@ -2,6 +2,9 @@
 
 Track what's in your kitchen and when it expires, add items by voice or text, turn the ones you pick into recipes from different cuisines, and keep an eye on the day's calories.
 
+
+https://docs.google.com/presentation/d/1IwMnK-nBsf1YgOa2XDsK0K4OxPp7rUfnROv40LG849Y/edit?usp=sharing
+
 ## Run (Mac)
 
 Needs Node 18+ (`brew install node`) and Google Chrome.
