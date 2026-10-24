@@ -37,6 +37,22 @@
   <div id="dbody"></div>
 </dialog>
 
+<dialog id="edlg" style="width:min(420px,94vw)">
+  <form id="eform" method="dialog" style="display:grid;gap:10px">
+    <h2 style="margin:0">Edit item</h2>
+    <label>Name <input id="e-name" required></label>
+    <label>Count <input id="e-count" type="number" min="0" step="any"></label>
+    <label>Weight (grams) <input id="e-weight" type="number" min="0" step="any"></label>
+    <label>Use by <input id="e-exp" type="date" required></label>
+    <div><button class="btn" type="submit">Save</button> <button class="ghost" id="e-cancel" type="button">Cancel</button></div>
+  </form>
+</dialog>
+
+<footer style="margin:28px 0 12px;font-size:12px;color:var(--mute);text-align:center">
+  <label><input type="checkbox" id="devtoggle"> Developer mode</label>
+  <span id="devbox" hidden> · <span id="devinfo"></span> <button class="ghost" id="nextday" type="button">Next day ▶</button> <button class="ghost" id="resetday" type="button">Reset</button></span>
+</footer>
+
 <script src="/js/common.js"></script>
 <script src="/js/main.js"></script>
 </body>

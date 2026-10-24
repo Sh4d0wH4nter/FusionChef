@@ -79,3 +79,9 @@ Needs Node 18+, no npm dependencies. Open it in Chrome so the microphone works (
 Presentation: https://docs.google.com/presentation/d/1IwMnK-nBsf1YgOa2XDsK0K4OxPp7rUfnROv40LG849Y/edit?usp=sharing
 
 **Mic says "service-not-allowed"?** Browser speech recognition needs Google Chrome (not Brave/Arc/Edge) opened at `http://localhost:3000`, with the microphone allowed for the site. Safari needs Dictation turned on in System Settings > Keyboard. Typing items always works.
+
+## Input defaults, edit, demo mode
+
+- Unspecified amounts get typical sizes from `public/data/defaults.json` (eggs = carton of 6, milk = 1 L carton, chicken leg = 250 g each, plus shelf lives). Anything you say overrides them. Edit that file to change them.
+- **edit** on each card changes name, amount and use-by date.
+- Tick **Developer mode** at the bottom of the Kitchen page for a **Next day ▶** button that moves "today" forward so cards shift lanes for demos. **Reset** returns to the real date.

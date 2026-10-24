@@ -2,7 +2,7 @@
   const { load, save, today, uid, esc, ring } = FC;
   const $ = (id) => document.getElementById(id);
   $("nav").innerHTML = FC.nav("nutrition");
-  $("date").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  $("date").textContent = FC.now().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 
   let log = load("log", []);
   let goal = load("goal", 2000);

@@ -17,7 +17,8 @@
   }
 
   function render() {
-    $("date").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+    $("date").textContent = FC.now().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+    renderDev();
     const rows = items.map((it) => ({ it, d: daysUntil(it.expires) })).sort((a, b) => a.d - b.d);
     const lanes = [["now", "Eat now", "Past date or within 2 days"], ["soon", "Use soon", "3 to 7 days left"], ["ok", "Plenty of time", "More than a week"]];
     $("chips").innerHTML = lanes.map(([k, l]) => `<div class="chip" style="--c:var(--${k})"><i></i><b>${rows.filter((x) => stage(x.d) === k).length}</b>${l}</div>`).join("");
@@ -39,7 +40,10 @@
         const rm = document.createElement("button");
         rm.className = "x"; rm.textContent = "remove";
         rm.onclick = (e) => { e.stopPropagation(); selected.delete(it.id); items = items.filter((x) => x.id !== it.id); save("items", items); render(); };
-        el.querySelector(".meta").after(rm);
+        const ed = document.createElement("button");
+        ed.className = "x"; ed.textContent = "edit"; ed.style.marginRight = "10px";
+        ed.onclick = (e) => { e.stopPropagation(); openEdit(it); };
+        el.querySelector(".meta").after(rm); el.querySelector(".meta").after(ed);
         el.onclick = () => { selected.has(it.id) ? selected.delete(it.id) : selected.add(it.id); render(); };
         lane.appendChild(el);
       }
@@ -55,9 +59,11 @@
     for (const p of list) {
       const name = String(p.name).trim().toLowerCase();
       const food = FC.matchFood(name);
+      const q = FC.applyDefaults({ ...p, name });
+      const said = /^\d{4}-\d{2}-\d{2}$/.test(q.expiry || "");
       items.push({
-        id: uid(), name, count: p.count ?? null, weight_g: p.weight_g ?? null, food: food?.name ?? null,
-        added: t, expires: /^\d{4}-\d{2}-\d{2}$/.test(p.expiry || "") ? p.expiry : addDays(t, 7), guessed: !p.expiry,
+        id: uid(), name, count: q.count, weight_g: q.weight_g, pack: q.pack, food: food?.name ?? null,
+        added: t, expires: said ? q.expiry : addDays(t, q.shelf_days || 7), guessed: !said,
       });
     }
     save("items", items); render();
@@ -72,13 +78,13 @@
       if (!parsed.length) return status("I couldn't find any food items in that. Try again?", true);
       addParsed(parsed);
       const guessed = parsed.filter((p) => !p.expiry).map((p) => p.name);
-      status(`Added ${parsed.map((p) => esc(p.name)).join(", ")}.${guessed.length ? ` No expiry heard for ${esc(guessed.join(", "))}, so I set 7 days.` : ""}`);
+      status(`Added ${parsed.map((p) => esc(p.name)).join(", ")}.${guessed.length ? ` No expiry heard for ${esc(guessed.join(", "))}, so I guessed a typical shelf life (change it with edit).` : ""}`);
     } catch (e) { status(e.message, true); }
   }
 
   $("f").onsubmit = (e) => { e.preventDefault(); const v = $("txt").value.trim(); if (v) { $("txt").value = ""; submit({ text: v }); } };
 
-  // ---- voice: record with MediaRecorder, send audio to Gemma ----
+  // ---- voice: record with MediaRecorder, send audio to the model ----
   // If no Gemma model on the key can take audio, fall back to the browser's speech recognition
   // for the transcript (Gemma still parses it into items).
   let audioOK = true;
@@ -114,13 +120,42 @@
     } catch { status("Microphone access was blocked.", true); }
   };
 
+  // ---- edit an item ----
+  let editing = null;
+  function openEdit(it) {
+    editing = it;
+    $("e-name").value = it.name; $("e-count").value = it.count ?? ""; $("e-weight").value = it.weight_g ?? ""; $("e-exp").value = it.expires;
+    $("edlg").showModal();
+  }
+  $("e-cancel").onclick = () => $("edlg").close();
+  $("eform").onsubmit = (e) => {
+    e.preventDefault();
+    const name = $("e-name").value.trim().toLowerCase(); if (!name || !editing) return;
+    const count = $("e-count").value === "" ? null : +$("e-count").value, weight_g = $("e-weight").value === "" ? null : +$("e-weight").value;
+    if (count !== editing.count || weight_g !== editing.weight_g) editing.pack = null; // a typed amount replaces the pack label
+    Object.assign(editing, { name, count, weight_g, expires: $("e-exp").value || editing.expires, food: FC.matchFood(name)?.name ?? null, guessed: false });
+    save("items", items); $("edlg").close(); render();
+  };
+
+  // ---- developer mode: step "today" forward to demo expiring cards ----
+  const devOn = () => { try { return localStorage.getItem("fc.dev") === "1"; } catch { return false; } };
+  function renderDev() {
+    const off = FC.getOffset();
+    $("devbox").hidden = !devOn();
+    $("devtoggle").checked = devOn();
+    $("devinfo").textContent = off ? `Demo date: ${FC.now().toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })} (+${off} day${off > 1 ? "s" : ""})` : "Demo date: real today";
+  }
+  $("devtoggle").onchange = (e) => { try { localStorage.setItem("fc.dev", e.target.checked ? "1" : "0"); } catch {} if (!e.target.checked) FC.setOffset(0); render(); };
+  $("nextday").onclick = () => { FC.setOffset(FC.getOffset() + 1); render(); };
+  $("resetday").onclick = () => { FC.setOffset(0); render(); };
+
   // ---- recipe generation ----
   $("clear").onclick = () => { selected.clear(); render(); };
   $("dclose").onclick = () => $("dlg").close();
   $("gen").onclick = async () => {
     const chosen = items.filter((i) => selected.has(i.id));
     generated = []; picked.clear();
-    $("dbody").innerHTML = `<p class="sub"><span class="spin"></span>Asking Gemma for ideas using ${chosen.map((c) => esc(c.name)).join(", ")}…</p>`;
+    $("dbody").innerHTML = `<p class="sub"><span class="spin"></span>Asking the AI for ideas using ${chosen.map((c) => esc(c.name)).join(", ")}…</p>`;
     $("dlg").showModal();
     try {
       const { recipes } = await api("/api/recipes", { ingredients: chosen.map((c) => ({ name: c.name, qty: qtyLabel(c) })) });
@@ -155,4 +190,5 @@
 
   render();
   FC.foodsReady.then(render);
+  FC.defaultsReady.then(render);
 })();

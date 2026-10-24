@@ -296,7 +296,7 @@ const isoToday = () => new Date().toISOString().slice(0, 10);
 const PARSE_PROMPT = () => `Today is ${isoToday()} (${new Date().toLocaleDateString("en-GB", { weekday: "long" })}).
 Extract the grocery/food items from the user's input. Reply with ONLY a JSON array, no other text. Each element:
 {"name": string (singular, lowercase, e.g. "egg", "chicken breast"), "count": number|null (number of items, e.g. 2 for "2 eggs"), "weight_g": number|null (convert kg/oz/lb to grams), "expiry": "YYYY-MM-DD"|null}
-Resolve relative expiry dates ("Friday", "in 3 days", "next week") against today's date. Use null when something was not said.`;
+Resolve relative expiry dates ("Friday", "in 3 days", "next week") against today's date. Use null when something was not said; never invent a quantity or expiry. Units: 1 litre of liquid = 1000 g, a dozen = 12, "half a dozen" = 6. If the user says "a carton of milk" or similar with no size, leave weight_g null. Fix obvious speech-recognition slips (e.g. "eggs" not "X").`;
 
 const handlers = {
   async "/api/capabilities"() {

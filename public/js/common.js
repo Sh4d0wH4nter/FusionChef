@@ -1,12 +1,16 @@
 // Shared helpers: storage, dates, food-database matching, toast, nav.
 window.FC = (() => {
-  const KEYS = { items: "fc.items", recipes: "fc.recipes", log: "fc.log", goal: "fc.goal" };
+  const KEYS = { items: "fc.items", recipes: "fc.recipes", log: "fc.log", goal: "fc.goal", dayoffset: "fc.dayoffset" };
   const load = (k, d) => { try { return JSON.parse(localStorage.getItem(KEYS[k])) ?? d; } catch { return d; } };
   const save = (k, v) => { try { localStorage.setItem(KEYS[k], JSON.stringify(v)); } catch {} };
 
   const pad = (n) => String(n).padStart(2, "0");
   const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const today = () => iso(new Date());
+  // Developer mode can shift "today" forward by whole days so the expiry cards can be demoed without waiting.
+const getOffset = () => Number(load("dayoffset", 0)) || 0;
+const setOffset = (n) => save("dayoffset", n);
+const now = () => { const d = new Date(); d.setDate(d.getDate() + getOffset()); return d; };
+const today = () => iso(now());
   const parse = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
   const daysUntil = (s) => Math.round((parse(s) - parse(today())) / 864e5);
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -35,7 +39,30 @@ window.FC = (() => {
     const g = it.weight_g ?? (it.count && f.unit_g ? it.count * f.unit_g : null);
     return g ? Math.round((g / 100) * f.kcal_per_100g) : null;
   }
-  const qtyLabel = (it) => [it.count && `${it.count}×`, it.weight_g && (it.weight_g >= 1000 ? `${+(it.weight_g / 1000).toFixed(2)} kg` : `${it.weight_g} g`)].filter(Boolean).join(" ");
+  // ---- sensible defaults for common foods (public/data/defaults.json) ----
+  let defaults = [];
+  const defaultsReady = fetch("/data/defaults.json").then((r) => r.json()).then((d) => (defaults = d)).catch(() => {});
+  const norm = (s) => tokens(s).join(" ");
+  const findDefault = (name) => {
+    const n = ` ${norm(name)} `;
+    return defaults.find((d) => d.names.some((a) => n.includes(` ${norm(a)} `))) || null;
+  };
+  // Fill in what the user did not say: a pack size if no amount, grams from a count, a shelf life if no expiry.
+  // Whatever the user did say is kept as-is.
+  function applyDefaults(p) {
+    const out = { name: p.name, count: p.count ?? null, weight_g: p.weight_g ?? null, expiry: p.expiry || null, pack: null, guessedQty: false };
+    const d = findDefault(p.name);
+    if (!d) return out;
+    if (out.count == null && out.weight_g == null) {
+      out.guessedQty = true; out.pack = d.label || null;
+      if (d.count) out.count = d.count;
+      if (d.total_g) out.weight_g = d.total_g;
+      else if (d.weigh && d.count && d.unit_g) out.weight_g = d.count * d.unit_g;
+    } else if (out.weight_g == null && out.count != null && d.weigh && d.unit_g) out.weight_g = out.count * d.unit_g;
+    out.shelf_days = d.shelf_days;
+    return out;
+  }
+  const qtyLabel = (it) => it.pack ? it.pack : [it.count && `${it.count}×`, it.weight_g && (it.weight_g >= 1000 ? `${+(it.weight_g / 1000).toFixed(2)} kg` : `${it.weight_g} g`)].filter(Boolean).join(" ");
 
   let tt;
   function toast(html) {
@@ -57,5 +84,5 @@ window.FC = (() => {
   }
   const ring = (frac, r, c) => `stroke-dasharray="${2 * Math.PI * r}" stroke-dashoffset="${2 * Math.PI * r * (1 - Math.max(0, Math.min(1, frac)))}"`;
 
-  return { load, save, today, parse, daysUntil, uid, esc, foodsReady, matchFood, itemKcal, qtyLabel, toast, nav, api, ring };
+  return { defaultsReady, applyDefaults, getOffset, setOffset, now, load, save, today, parse, daysUntil, uid, esc, foodsReady, matchFood, itemKcal, qtyLabel, toast, nav, api, ring };
 })();
