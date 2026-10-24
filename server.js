@@ -26,12 +26,12 @@ let VERTEX = env.VERTEX_PROJECT
   : null;
 // OpenRouter (takes priority when OPENROUTER_API_KEY is set). Same request shape as Cookbook-Maker-v2:
 // POST https://openrouter.ai/api/v1/chat/completions with a Bearer key. Models are OpenRouter ids.
-//  - OPENROUTER_MODEL: text model (default google/gemma-4-31b-it:free)
+//  - OPENROUTER_MODEL: text model (default nvidia/nemotron-3-super-120b-a12b:free)
 //  - OPENROUTER_FALLBACK_MODELS: comma-separated ids tried in order if the main one fails (e.g. free models get rate-limited)
 //  - OPENROUTER_AUDIO_MODEL: optional audio-capable model (e.g. google/gemini-2.5-flash). Unset = mic uses browser speech recognition.
 const OR = env.OPENROUTER_API_KEY
   ? { key: env.OPENROUTER_API_KEY, base: (env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, ""),
-      model: env.OPENROUTER_MODEL || "google/gemma-4-31b-it:free",
+      model: env.OPENROUTER_MODEL || "nvidia/nemotron-3-super-120b-a12b:free",
       fallbacks: (env.OPENROUTER_FALLBACK_MODELS || "").split(",").map((x) => x.trim()).filter(Boolean),
       audioModel: env.OPENROUTER_AUDIO_MODEL || null, maxTokens: Number(env.OPENROUTER_MAX_TOKENS) || 4096 }
   : null;

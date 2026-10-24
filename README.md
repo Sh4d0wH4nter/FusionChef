@@ -15,7 +15,7 @@ npm start              # http://localhost:3000
 Needs Node 18+ (`brew install node` on Mac) and a key from https://openrouter.ai/keys. In `.env`:
 
 - `OPENROUTER_API_KEY`: your key.
-- `OPENROUTER_MODEL`: any model id from openrouter.ai/models (default `google/gemma-4-31b-it:free`).
+- `OPENROUTER_MODEL`: any model id from openrouter.ai/models (default `nvidia/nemotron-3-super-120b-a12b:free`).
 - `OPENROUTER_FALLBACK_MODELS`: optional comma-separated ids tried if the main model fails or is rate-limited.
 - `OPENROUTER_AUDIO_MODEL`: optional audio-capable model. Gemma on OpenRouter has no audio input, so by default the mic uses your browser's speech recognition (Chrome) and the transcript goes to the model.
 
