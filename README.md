@@ -77,3 +77,5 @@ Needs Node 18+, no npm dependencies. Open it in Chrome so the microphone works (
 
 
 Presentation: https://docs.google.com/presentation/d/1IwMnK-nBsf1YgOa2XDsK0K4OxPp7rUfnROv40LG849Y/edit?usp=sharing
+
+**Mic says "service-not-allowed"?** Browser speech recognition needs Google Chrome (not Brave/Arc/Edge) opened at `http://localhost:3000`, with the microphone allowed for the site. Safari needs Dictation turned on in System Settings > Keyboard. Typing items always works.

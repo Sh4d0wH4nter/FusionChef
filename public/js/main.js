@@ -88,7 +88,9 @@
     if (!SR) return status("No audio model is set and this browser has no speech recognition. Type your items instead.", true);
     const sr = new SR(); sr.lang = navigator.language || "en-GB";
     sr.onresult = (e) => submit({ text: e.results[0][0].transcript });
-    sr.onerror = (e) => { $("mic").classList.remove("rec"); status(`Speech recognition failed (${e.error}).`, true); };
+    sr.onerror = (e) => { $("mic").classList.remove("rec"); status(e.error === "service-not-allowed" || e.error === "not-allowed"
+      ? "Speech recognition is blocked. Use Google Chrome (Brave/Arc/Edge lack the speech service), allow the microphone for localhost, and on Safari turn on Dictation in System Settings > Keyboard. You can also just type your items."
+      : `Speech recognition failed (${e.error}).`, true); };
     sr.onend = () => $("mic").classList.remove("rec");
     sr.start(); $("mic").classList.add("rec"); status("Listening…");
   }
