@@ -20,13 +20,15 @@ npm start              # open http://localhost:3000 in Chrome
 | Variable | What it does |
 | --- | --- |
 | `OPENROUTER_API_KEY` | Your OpenRouter key. Stays on the server, never sent to the browser. |
-| `OPENROUTER_MODEL` | Model id from openrouter.ai/models. Defaults to the free `nvidia/nemotron-3-super-120b-a12b:free`. |
-| `OPENROUTER_FALLBACK_MODELS` | Comma-separated ids tried in order if the main model fails or is rate-limited. |
+| `OPENROUTER_MODEL` | Optional. Leave unset to use the built-in pool of fast free models. |
+| `OPENROUTER_FALLBACK_MODELS` | Optional comma-separated ids tried after the main one. Leave unset to use the rest of the pool. |
 | `OPENROUTER_AUDIO_MODEL` | Optional. Leave unset: voice uses the browser's speech-to-text instead. |
 | `OPENROUTER_MAX_TOKENS` | Optional, default 8192. |
+| `OPENROUTER_TIMEOUT_MS` / `OPENROUTER_DEADLINE_MS` / `OPENROUTER_HEDGE_MS` | Optional. Per-model time limit (25 s), whole-request limit (60 s), and how long before a second model is started in parallel (10 s). |
 | `PORT` | Optional, default 3000. |
 
-Free models are rate-limited (20 requests/minute; 50/day, or 1000/day once you have bought 10+ credits) and come and go, so if a model stops working, swap in another `:free` id. The server logs `[ai] ok: <model>` or `[ai] failed: <model>: <reason>` for each attempt, which shows which model actually answered.
+Free models are rate-limited (20 requests/minute; 50/day, or 1000/day once you have bought 10+ credits) and come and go, so if a model stops working, swap in another `:free` id. 
+**Slow or stuck models:** each model gets 25 s. If it hasn't answered after 10 s the next model is started alongside it, and the first valid answer wins. A model that times out, is rate-limited or errors is skipped for 3 minutes, models are tried fastest-measured first, and the whole request gives up after 60 s with a clear message. The browser shows a Cancel button while waiting. The server logs `[ai] ok: <model> in 4.2s` or `[ai] failed: <model> after 25.0s: <reason>` for each attempt, which shows which model answered and why others were skipped. If you set `OPENROUTER_MODEL`/`OPENROUTER_FALLBACK_MODELS` in an older `.env`, delete them to get the pool.
 
 ## Pages
 
