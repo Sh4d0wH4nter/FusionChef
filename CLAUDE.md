@@ -26,8 +26,8 @@ test/fake-endpoint.test.js  Integration tests against fake model servers
 - Loads `.env` with a tiny parser. Backend is OpenRouter when `OPENROUTER_API_KEY` is set (config object `OR`).
 - Legacy Vertex / AI Studio code paths still exist (`VERTEX`, `ENDPOINT`, `KEY`) but are undocumented and unused by the owner. Candidates for deletion; the OpenRouter path does not depend on them except shared helpers (`post`, `toJsonSchema`, `toChatContent`, `askJSON`).
 - Endpoints: `GET /api/capabilities`, `POST /api/parse` ({text} or {audio, mime}), `POST /api/recipes` ({ingredients, cuisines?}).
-- Flow: `askJSON(models, parts, schema, validate)` loops over models (main + `OPENROUTER_FALLBACK_MODELS`), tries structured output (`response_format` json_schema) then plain text, extracts JSON leniently (`extractJSON`), then runs the validator. Failures are logged as `[ai] failed: <model>: <reason>`, success as `[ai] ok: <model>`.
-- `post()` retries 429/502/503/504 and network errors with backoff.
+- Flow (OpenRouter): `askJSON` -> `askJSONOR` orders the pool (`OR_POOL` or env lists) by measured latency (`orStats`), starts the first model, starts the next one alongside after `OPENROUTER_HEDGE_MS`, replaces a failed model immediately, takes the first valid answer and aborts the rest, and rejects after `OPENROUTER_DEADLINE_MS`. Each model (`orTry`) tries structured output (`response_format` json_schema) then plain text; each HTTP call (`orPost`) has `OPENROUTER_TIMEOUT_MS`. Timeouts, 429s and 5xx put a model on a 3 minute cool-down. Failures log as `[ai] failed: <model> after Ns: <reason>`, success as `[ai] ok: <model> in Ns`. The legacy loop in `askJSON` is only for the old Vertex/AI Studio path.
+- `post()` (legacy path only) retries 429/502/503/504 and network errors with backoff; OpenRouter uses `orPost` with no same-model retries.
 - Validators: `validItems` (parse) and `validRecipes(have)` with `sane()` (recipes: >=3 steps, >=2 ingredients, kcal 50-1800 and consistent with macros, plausible servings/times, ingredients mostly from user list or pantry; needs >=2 passing).
 - Schemas are written in Gemini-style OpenAPI (upper-case types) and converted by `toJsonSchema`.
 - `npm run check` (`node server.js --check`) makes one real parse call and prints key tier info.
@@ -50,6 +50,7 @@ test/fake-endpoint.test.js  Integration tests against fake model servers
 - Keep the README user-facing and this file developer-facing; update both when behaviour changes.
 
 ## Testing
+- `api()` in `common.js` has a 75 s client timeout and takes an AbortSignal (Cancel buttons).
 - `npm test` spawns the server against fake servers (OpenRouter request shape, schema and model fallback, nonsense recipes rejected, legacy Vertex path). No real model, no browser, no microphone.
 - UI changes were checked ad hoc with headless Chromium (Playwright) at 320 to 1440px wide, light and dark, with seeded `localStorage` and `/api/*` mocked; there is no committed UI test yet.
 - Never verified against a real OpenRouter key from the build environment. Real-model quirks (empty replies from reasoning models, rate limits, `:free` models being retired) are the most likely source of bugs; use the `[ai]` log lines to diagnose.

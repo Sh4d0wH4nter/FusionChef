@@ -26,13 +26,21 @@ let VERTEX = env.VERTEX_PROJECT
   : null;
 // OpenRouter (takes priority when OPENROUTER_API_KEY is set). Same request shape as Cookbook-Maker-v2:
 // POST https://openrouter.ai/api/v1/chat/completions with a Bearer key. Models are OpenRouter ids.
-//  - OPENROUTER_MODEL: text model (default nvidia/nemotron-3-super-120b-a12b:free)
+//  - OPENROUTER_MODEL: text model (default: first of a built-in pool of fast free models)
 //  - OPENROUTER_FALLBACK_MODELS: comma-separated ids tried in order if the main one fails (e.g. free models get rate-limited)
 //  - OPENROUTER_AUDIO_MODEL: optional audio-capable model (e.g. google/gemini-2.5-flash). Unset = mic uses browser speech recognition.
+// Free text models, roughly fastest-first (small active-parameter MoE models before big reasoning ones). Order is a guess:
+// the server then reorders by the latency it actually measures and sidelines models that time out or error for a few minutes.
+const OR_POOL = ["google/gemma-4-26b-a4b-it:free", "xingchen-agi/xing4.0-29b-a4b:free", "nvidia/nemotron-3.5-lightning:free",
+  "nvidia/nemotron-3-super-120b-a12b:free", "google/gemma-4-31b-it:free", "recursive/flint-v1.0:free", "poolside/laguna-xs-2.1:free"];
 const OR = env.OPENROUTER_API_KEY
   ? { key: env.OPENROUTER_API_KEY, base: (env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, ""),
-      model: env.OPENROUTER_MODEL || "nvidia/nemotron-3-super-120b-a12b:free",
-      fallbacks: (env.OPENROUTER_FALLBACK_MODELS || "").split(",").map((x) => x.trim()).filter(Boolean),
+      model: env.OPENROUTER_MODEL || OR_POOL[0],
+      fallbacks: env.OPENROUTER_FALLBACK_MODELS ? env.OPENROUTER_FALLBACK_MODELS.split(",").map((x) => x.trim()).filter(Boolean) : OR_POOL.slice(1),
+      timeoutMs: Number(env.OPENROUTER_TIMEOUT_MS) || 25e3, // per model attempt
+      deadlineMs: Number(env.OPENROUTER_DEADLINE_MS) || 60e3, // whole request, then give up with a clear error
+      hedgeMs: Number(env.OPENROUTER_HEDGE_MS) || 10e3, // if the first model is still silent after this, start the next one in parallel
+      parallel: Number(env.OPENROUTER_PARALLEL) || 2, coolMs: Number(env.OPENROUTER_COOLDOWN_MS) || 3 * 60e3,
       audioModel: env.OPENROUTER_AUDIO_MODEL || null, maxTokens: Number(env.OPENROUTER_MAX_TOKENS) || 8192 }
   : null;
 const ENDPOINT = !OR && VERTEX && env.VERTEX_ENDPOINT_ID
@@ -197,13 +205,35 @@ async function gemmaEndpoint(model, parts, schema) {
 
 // OpenRouter chat completions. Structured output via response_format json_schema (not every model supports it;
 // askJSON then retries without). Audio goes as OpenAI-style input_audio parts.
-async function gemmaOpenRouter(model, parts, schema) {
+class AIError extends Error { constructor(msg, kind) { super(msg); this.kind = kind; } } // kind: timeout | rate | server | aborted | bad
+// One OpenRouter call with its own timeout; `signal` lets the orchestrator cancel it once another model has won.
+async function orPost(body, signal) {
+  const ctl = new AbortController();
+  const onAbort = () => ctl.abort();
+  signal.addEventListener("abort", onAbort);
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; ctl.abort(); }, OR.timeoutMs);
+  try {
+    const r = await fetch(`${OR.base}/chat/completions`, { method: "POST", signal: ctl.signal,
+      headers: { "content-type": "application/json", authorization: `Bearer ${OR.key}`, "x-title": "FusionChef" }, body: JSON.stringify(body) });
+    const raw = await r.text();
+    let j; try { j = JSON.parse(raw); } catch { j = { error: { message: raw.slice(0, 300) } }; }
+    if (!r.ok) throw new AIError(j.error?.message || `HTTP ${r.status}`, r.status === 429 ? "rate" : r.status >= 500 ? "server" : "bad");
+    return j;
+  } catch (e) {
+    if (e instanceof AIError) throw e;
+    if (timedOut) throw new AIError(`no answer within ${OR.timeoutMs / 1000}s`, "timeout");
+    if (signal.aborted) throw new AIError("cancelled", "aborted");
+    throw new AIError(`network error: ${e.message}`, "server");
+  } finally { clearTimeout(timer); signal.removeEventListener("abort", onAbort); }
+}
+async function gemmaOpenRouter(model, parts, schema, signal) {
   const hasAudio = parts.some((p) => p.inline_data);
   const body = { model, temperature: 0.4, max_tokens: OR.maxTokens,
     messages: [{ role: "user", content: hasAudio ? toChatContent(parts, "input_audio") : parts.map((p) => p.text).join("\n\n") }] };
   body.reasoning = { effort: "low" }; // reasoning models otherwise burn max_tokens thinking and return an empty answer
   if (schema) body.response_format = { type: "json_schema", json_schema: { name: "result", strict: false, schema: toJsonSchema(schema) } };
-  const j = await post(model, () => body);
+  const j = await orPost(body, signal);
   // OpenRouter can answer HTTP 200 with an error object (e.g. upstream provider failure).
   if (j.error && !j.choices) throw new Error(j.error.message || JSON.stringify(j.error).slice(0, 300));
   const c = j.choices?.[0];
@@ -244,7 +274,62 @@ function extractJSON(text) {
 // output (schema enforced by the server); if the model rejects it, returns nothing, or the
 // result fails validation, attempt 2 relies on the prompt's template alone.
 const noSchema = new Set(); // models that rejected JSON mode; skip straight to the prompt template
+// OpenRouter flow: models are tried in order of measured speed; a slow one is raced by the next after hedgeMs, a failing one is
+// replaced at once, the first valid answer wins and cancels the rest, and the whole thing gives up after deadlineMs.
+const orStats = new Map(); // model -> { avgMs, until }
+const orOrder = (models) => {
+  const now = Date.now(), st = (m) => orStats.get(m) || {};
+  const live = models.filter((m) => !(st(m).until > now)), cooling = models.filter((m) => st(m).until > now);
+  return [...live.sort((a, b) => (st(a).avgMs ?? 12e3) - (st(b).avgMs ?? 12e3)), ...cooling];
+};
+const orNote = (model, ok, ms, kind) => {
+  const s = orStats.get(model) || {};
+  if (ok) orStats.set(model, { avgMs: s.avgMs ? (s.avgMs + ms) / 2 : ms, until: 0 });
+  else if (kind !== "aborted") orStats.set(model, { ...s, until: Date.now() + (kind === "bad" ? 60e3 : OR.coolMs) });
+};
+async function orTry(model, parts, schema, validate, signal) {
+  let last;
+  for (const sch of noSchema.has(model) ? [null] : [schema, null]) {
+    const tag = `${model}${sch ? " (schema)" : ""}`, t0 = Date.now();
+    try {
+      const { text, finish } = await gemmaOpenRouter(model, parts, sch, signal);
+      if (!text.trim()) throw new AIError(`empty reply (finish=${finish})`, "bad");
+      let out; try { out = validate(extractJSON(text)); } catch (e) { throw new AIError(e.message, "bad"); }
+      orNote(model, true, Date.now() - t0);
+      console.log(`[ai] ok: ${tag} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+      return out;
+    } catch (e) {
+      last = e;
+      if (e.kind !== "aborted") console.warn(`[ai] failed: ${tag} after ${((Date.now() - t0) / 1000).toFixed(1)}s: ${e.message.slice(0, 200)}${e.kind === "timeout" || e.kind === "rate" || e.kind === "server" ? " (skipping this model for a few minutes)" : ""}`);
+      if (sch && /json mode|response_?mime|response_format|json_schema|guided|schema/i.test(e.message)) noSchema.add(model);
+      if (["timeout", "rate", "server", "aborted"].includes(e.kind)) break; // no point retrying the same slow or limited model
+    }
+  }
+  orNote(model, false, 0, last.kind);
+  throw last;
+}
+function askJSONOR(models, parts, schema, validate) {
+  const order = orOrder([].concat(models));
+  return new Promise((resolve, reject) => {
+    const ctl = new AbortController(), timers = [], errs = [];
+    let next = 0, running = 0, done = false;
+    const end = (fn, v) => { if (done) return; done = true; ctl.abort(); timers.forEach(clearTimeout); fn(v); };
+    const launch = () => {
+      if (done || next >= order.length) return false;
+      const model = order[next++]; running++;
+      timers.push(setTimeout(() => { if (!done && running < OR.parallel) launch(); }, OR.hedgeMs));
+      orTry(model, parts, schema, validate, ctl.signal).then((out) => end(resolve, out), (e) => {
+        running--; errs.push(`${model}: ${e.message.slice(0, 120)}`);
+        if (!done && !launch() && running === 0) end(reject, new Error(`No model could answer right now. ${errs.join(" | ")}`));
+      });
+      return true;
+    };
+    timers.push(setTimeout(() => end(reject, new Error(`The AI took too long (over ${OR.deadlineMs / 1000}s) and was stopped. Try again in a moment. ${errs.join(" | ")}`)), OR.deadlineMs));
+    if (!launch()) end(reject, new Error("No models configured"));
+  });
+}
 async function askJSON(models, parts, schema, validate) {
+  if (OR) return askJSONOR(models, parts, schema, validate);
   const problems = [];
   for (const model of [].concat(models)) {
     for (const sch of noSchema.has(model) ? [null] : [schema, null]) {

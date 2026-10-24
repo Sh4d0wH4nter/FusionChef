@@ -87,14 +87,16 @@
 
   const status = (msg, bad) => { $("status").innerHTML = bad ? `<span class="err">${esc(msg)}</span>` : msg; };
   async function submit(body) {
-    status('<span class="spin"></span>Understanding that…');
+    const ctl = new AbortController();
+    status('<span class="spin"></span>Understanding that… <button class="x" id="pcancel" type="button">cancel</button>');
+    $("pcancel").onclick = () => ctl.abort();
     try {
-      const { items: parsed } = await api("/api/parse", body);
+      const { items: parsed } = await api("/api/parse", body, { signal: ctl.signal });
       if (!parsed.length) return status("I couldn't find any food items in that. Try again?", true);
       addParsed(parsed);
       const guessed = parsed.filter((p) => !p.expiry).map((p) => p.name);
       status(`Added ${parsed.map((p) => esc(p.name)).join(", ")}.${guessed.length ? ` No expiry heard for ${esc(guessed.join(", "))}, so I guessed a typical shelf life (change it with edit).` : ""}`);
-    } catch (e) { status(e.message, true); }
+    } catch (e) { e.cancelled ? status("Cancelled.") : status(e.message, true); }
   }
 
   $("f").onsubmit = (e) => { e.preventDefault(); const v = $("txt").value.trim(); if (v) { $("txt").value = ""; submit({ text: v }); } };
@@ -170,15 +172,18 @@
   $("gen").onclick = async () => {
     const chosen = items.filter((i) => selected.has(i.id));
     generated = []; picked.clear();
-    $("dbody").innerHTML = `<p class="loading-line"><span class="spin"></span>Asking the AI for ideas using ${chosen.map((c) => esc(c.name)).join(", ")}…</p>
-      <div class="rcards" aria-hidden="true">${'<div class="skel"></div>'.repeat(3)}</div><div style="height:24px"></div>`;
-    $("dlg").showModal();
+    $("dbody").innerHTML = `<p class="loading-line"><span class="spin"></span>Asking the AI for ideas using ${chosen.map((c) => esc(c.name)).join(", ")}… this can take up to a minute.</p>
+      <div class="rcards" aria-hidden="true">${'<div class="skel"></div>'.repeat(3)}</div>
+      <button class="ghost" id="rcancel" type="button">Cancel</button><div style="height:24px"></div>`;
+    const ctl = new AbortController();
+    $("rcancel").onclick = () => ctl.abort();
+    if (!$("dlg").open) $("dlg").showModal();
     try {
-      const { recipes } = await api("/api/recipes", { ingredients: chosen.map((c) => ({ name: c.name, qty: qtyLabel(c) })) });
+      const { recipes } = await api("/api/recipes", { ingredients: chosen.map((c) => ({ name: c.name, qty: qtyLabel(c) })) }, { signal: ctl.signal });
       generated = recipes.map((r) => ({ ...r, id: uid() }));
       drawRecipes();
     } catch (e) {
-      $("dbody").innerHTML = `<div class="errbox" role="alert"><b>Couldn't get recipe ideas</b><p>${esc(e.message)}</p><button class="ghost" id="retry" type="button">Try again</button></div>`;
+      $("dbody").innerHTML = `<div class="errbox" role="alert"><b>${e.cancelled ? "Cancelled" : "Couldn't get recipe ideas"}</b><p>${e.cancelled ? "No recipes were generated." : esc(e.message)}</p><button class="ghost" id="retry" type="button">Try again</button></div>`;
       $("retry").onclick = () => $("gen").click();
     }
   };

@@ -96,3 +96,29 @@ badFake.listen(0, async () => {
   } catch (e) { console.error("FAIL (sanity)", e); process.exitCode = 1; }
   srv.kill(); badFake.close();
 });
+
+// Slow models must be abandoned: a hanging first model times out and the second one answers; if everything hangs the request ends at the deadline.
+const hang = http.createServer(async (req, res) => {
+  let raw = ""; for await (const c of req) raw += c;
+  const body = JSON.parse(raw);
+  if (body.model.startsWith("hang/")) return; // never answers
+  const reply = [{ name: "egg", count: 2, weight_g: null, expiry: null }];
+  res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(reply) }, finish_reason: "stop" }] }));
+});
+hang.listen(0, async () => {
+  const base = { ...process.env, OPENROUTER_API_KEY: "k", OPENROUTER_BASE_URL: `http://localhost:${hang.address().port}`, OPENROUTER_TIMEOUT_MS: "600", OPENROUTER_HEDGE_MS: "300" };
+  delete base.VERTEX_PROJECT;
+  const srv = spawn("node", ["server.js"], { env: { ...base, PORT: "3921", OPENROUTER_MODEL: "hang/a", OPENROUTER_FALLBACK_MODELS: "ok/b", OPENROUTER_DEADLINE_MS: "5000" }, stdio: "inherit" });
+  const srv2 = spawn("node", ["server.js"], { env: { ...base, PORT: "3922", OPENROUTER_MODEL: "hang/a", OPENROUTER_FALLBACK_MODELS: "hang/b", OPENROUTER_DEADLINE_MS: "1500" }, stdio: "inherit" });
+  await new Promise((r) => setTimeout(r, 800));
+  try {
+    let t = Date.now();
+    const a = await call(3921, "/api/parse", { text: "2 eggs" });
+    assert.strictEqual(a.items[0].name, "egg"); assert.ok(Date.now() - t < 2500, "fell through to the working model quickly");
+    t = Date.now();
+    const b = await call(3922, "/api/parse", { text: "2 eggs" });
+    assert.ok(b.error, "all-hanging models give an error"); assert.ok(Date.now() - t < 3000, "gave up promptly: " + (Date.now() - t));
+    console.log("PASS (timeouts and deadline)");
+  } catch (e) { console.error("FAIL (timeouts)", e); process.exitCode = 1; }
+  srv.kill(); srv2.kill(); hang.close();
+});

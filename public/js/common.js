@@ -76,11 +76,23 @@ const today = () => iso(now());
     const links = [["/", "Kitchen", "main"], ["/nutrition.html", "Nutrition", "nutrition"]];
     return `<nav>${links.map(([h, l, k]) => `<a href="${h}" ${k === current ? 'aria-current="page"' : ""}>${l}</a>`).join("")}</nav>`;
   }
-  async function api(path, body) {
-    const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.error || "Request failed");
-    return j;
+  // POST JSON with a client-side timeout (a bit longer than the server's own deadline) and optional cancel via opts.signal.
+  async function api(path, body, opts = {}) {
+    const ctl = new AbortController();
+    let why = null;
+    const timer = setTimeout(() => { why = "timeout"; ctl.abort(); }, opts.timeoutMs || 75e3);
+    const onAbort = () => { why = "cancel"; ctl.abort(); };
+    opts.signal?.addEventListener("abort", onAbort);
+    try {
+      const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: ctl.signal });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Request failed");
+      return j;
+    } catch (e) {
+      if (why === "timeout") throw new Error("This is taking too long, so I stopped waiting. The free AI models can be busy. Try again in a moment.");
+      if (why === "cancel") throw Object.assign(new Error("Cancelled."), { cancelled: true });
+      throw e;
+    } finally { clearTimeout(timer); opts.signal?.removeEventListener("abort", onAbort); }
   }
   const ring = (frac, r, c) => `stroke-dasharray="${2 * Math.PI * r}" stroke-dashoffset="${2 * Math.PI * r * (1 - Math.max(0, Math.min(1, frac)))}"`;
 
