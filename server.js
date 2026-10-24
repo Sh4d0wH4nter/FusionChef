@@ -272,7 +272,24 @@ const RECIPE_SCHEMA = S("ARRAY", { items: S("OBJECT", {
   required: ["title", "cuisine", "summary", "servings", "nutrition", "ingredients", "steps"] }) });
 const asArray = (x) => (Array.isArray(x) ? x : x && typeof x === "object" ? Object.values(x).find(Array.isArray) || [x] : []);
 const validItems = (x) => { const a = asArray(x).filter((i) => i && typeof i.name === "string" && i.name.trim()); if (!a.length) throw new Error("no items in reply"); return a; };
-const validRecipes = (x) => { const a = asArray(x).filter((r) => r && r.title && Array.isArray(r.steps) && r.nutrition); if (!a.length) throw new Error("no complete recipes in reply"); return a; };
+// Sanity checks so nonsense recipes are dropped (and the model is asked again) instead of shown.
+const PANTRY = /\b(oil|salt|pepper|spice|herb|water|butter|sugar|flour|vinegar|stock|broth|soy|sauce|garlic|onion|paste|cumin|paprika|oregano|basil|thyme|chilli|chili|turmeric|coriander|ginger|lemon|lime|mustard|honey|rice|pasta|bread|milk|cream|cheese|egg|tomato|seasoning|curry|powder)\b/i;
+const sane = (have) => (r) => {
+  const n = r.nutrition || {}, num = (v) => Number.isFinite(Number(v));
+  if (!r.title || !Array.isArray(r.steps) || r.steps.length < 3 || !Array.isArray(r.ingredients) || r.ingredients.length < 2) return false;
+  if (![n.calories, n.protein_g, n.carbs_g, n.fat_g].every(num) || n.calories < 50 || n.calories > 1800) return false;
+  const macro = 4 * n.protein_g + 4 * n.carbs_g + 9 * n.fat_g; // macros should roughly add up to the calories
+  if (macro < n.calories * 0.5 || macro > n.calories * 1.6) return false;
+  if (r.servings < 1 || r.servings > 12 || r.prep_mins > 240 || r.cook_mins > 480) return false;
+  // At least half the ingredient lines must use something the user has or a basic pantry item.
+  const used = r.ingredients.filter((i) => PANTRY.test(i) || have.some((h) => new RegExp(h.replace(/[^a-z ]/g, "").split(" ").pop().replace(/s$/, ""), "i").test(i))).length;
+  return used >= r.ingredients.length * 0.5;
+};
+const validRecipes = (have) => (x) => {
+  const a = asArray(x).filter((r) => r && sane(have)(r));
+  if (a.length < 2) throw new Error(`only ${a.length} sensible recipes in reply`);
+  return a;
+};
 
 const isoToday = () => new Date().toISOString().slice(0, 10);
 
@@ -313,8 +330,15 @@ const handlers = {
   async "/api/recipes"(body) {
     const list = (body.ingredients || []).map((i) => `- ${i.name}${i.qty ? " (" + i.qty + ")" : ""}`).join("\n");
     const cuisines = body.cuisines?.length ? body.cuisines.join(", ") : "a varied mix, e.g. Italian, Indian, Mexican, Japanese, Thai, Mediterranean";
-    const prompt = `Suggest 4 different recipes, each from a different cuisine (${cuisines}), that make good use of these ingredients (assume basic pantry staples like oil, salt, spices):
+    const have = (body.ingredients || []).map((i) => String(i.name).toLowerCase());
+    const prompt = `You are an experienced home cook. Suggest 4 different recipes, each from a different cuisine (${cuisines}), that make good use of these ingredients (assume basic pantry staples like oil, salt, pepper, common spices, flour, sugar, stock):
 ${list}
+
+Rules:
+- Only real, well-known dishes or sensible variations that a cook would actually make. No odd food combinations (no fruit in savoury dishes unless it is traditional, no dessert ingredients in mains, nothing raw that must be cooked).
+- Use the listed ingredients as the main components, but you do not have to use all of them. Prefer 3 or more of them per recipe. Do not require other main ingredients the user does not have, beyond pantry staples.
+- Proper cooking methods, temperatures and times for the ingredient (e.g. chicken fully cooked). Steps must be in a logical order and complete (at least 4 steps).
+- Realistic quantities for 2 to 4 servings. Nutrition per serving must be realistic and macros must roughly add up (4 kcal/g protein and carbs, 9 kcal/g fat).
 
 Reply with ONLY a JSON array, no other text. Each element:
 {"title": string, "cuisine": string, "summary": string (one sentence),
@@ -322,7 +346,7 @@ Reply with ONLY a JSON array, no other text. Each element:
 "nutrition": {"calories": number, "protein_g": number, "carbs_g": number, "fat_g": number} (per serving),
 "ingredients": [string] (with quantities),
 "steps": [string]}`;
-    return { recipes: await askJSON(await textModels(), [{ text: prompt }], RECIPE_SCHEMA, validRecipes) };
+    return { recipes: await askJSON(await textModels(), [{ text: prompt }], RECIPE_SCHEMA, validRecipes(have)) };
   },
 };
 

@@ -17,7 +17,7 @@ const fake = http.createServer(async (req, res) => {
   if (body.response_format) return send(400, { error: { message: "response_format json_schema not supported" } });
   const prompt = Array.isArray(content) ? content.map((p) => p.text || "").join("") : content;
   const reply = /recipes/.test(prompt)
-    ? [{ title: "T", cuisine: "C", summary: "s", servings: 2, nutrition: { calories: 1, protein_g: 1, carbs_g: 1, fat_g: 1 }, ingredients: ["a"], steps: ["b"] }]
+    ? [1, 2].map(() => ({ title: "T", cuisine: "C", summary: "s", servings: 2, prep_mins: 10, cook_mins: 20, nutrition: { calories: 400, protein_g: 30, carbs_g: 40, fat_g: 13 }, ingredients: ["2 eggs", "salt"], steps: ["a", "b", "c", "d"] }))
     : [{ name: "egg", count: 2, weight_g: null, expiry: null }];
   send(200, { choices: [{ message: { content: "Sure!\n```json\n" + JSON.stringify(reply) + "\n```" }, finish_reason: "stop" }] });
 });
@@ -54,7 +54,7 @@ const orFake = http.createServer(async (req, res) => {
   if (body.response_format) return send(400, { error: { message: "response_format not supported" } });
   const prompt = String(body.messages[0].content);
   const reply = /recipes/.test(prompt)
-    ? [{ title: "T", cuisine: "C", summary: "s", servings: 2, nutrition: { calories: 1, protein_g: 1, carbs_g: 1, fat_g: 1 }, ingredients: ["a"], steps: ["b"] }]
+    ? [1, 2].map(() => ({ title: "T", cuisine: "C", summary: "s", servings: 2, prep_mins: 10, cook_mins: 20, nutrition: { calories: 400, protein_g: 30, carbs_g: 40, fat_g: 13 }, ingredients: ["2 eggs", "salt"], steps: ["a", "b", "c", "d"] }))
     : [{ name: "egg", count: 2, weight_g: null, expiry: null }];
   send(200, { choices: [{ message: { content: "```json\n" + JSON.stringify(reply) + "\n```" }, finish_reason: "stop" }] });
 });
@@ -76,4 +76,23 @@ orFake.listen(0, async () => {
     console.log("PASS (openrouter)");
   } catch (e) { console.error("FAIL (openrouter)", e); process.exitCode = 1; }
   srv.kill(); orFake.close();
+});
+
+// Nonsense recipes (impossible nutrition, no steps) must be rejected rather than shown.
+const badFake = http.createServer(async (req, res) => {
+  for await (const c of req);
+  const bad = [{ title: "Egg jam", cuisine: "C", summary: "s", servings: 2, nutrition: { calories: 5000, protein_g: 1, carbs_g: 1, fat_g: 1 }, ingredients: ["egg"], steps: ["x"] }];
+  res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(bad) }, finish_reason: "stop" }] }));
+});
+badFake.listen(0, async () => {
+  const env = { ...process.env, PORT: "3919", OPENROUTER_API_KEY: "k", OPENROUTER_BASE_URL: `http://localhost:${badFake.address().port}` };
+  delete env.VERTEX_PROJECT;
+  const srv = spawn("node", ["server.js"], { env, stdio: "inherit" });
+  await new Promise((r) => setTimeout(r, 800));
+  try {
+    const r = await call(3919, "/api/recipes", { ingredients: [{ name: "egg" }] });
+    assert.ok(r.error && /sensible/.test(r.error), "bad recipes rejected: " + JSON.stringify(r));
+    console.log("PASS (rejects nonsense recipes)");
+  } catch (e) { console.error("FAIL (sanity)", e); process.exitCode = 1; }
+  srv.kill(); badFake.close();
 });
