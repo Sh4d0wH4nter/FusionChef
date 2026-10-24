@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FusionChef</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>Fusion<span>Chef</span></h1><div class="sub" id="date"></div></div>
+    <div class="chips" id="chips"></div>
+    <div id="nav"></div>
+  </header>
+
+  <section class="panel inbar">
+    <button class="mic" id="mic" type="button" title="Tap to record, tap again to add" aria-label="Record ingredients">🎙</button>
+    <form id="f" autocomplete="off">
+      <input id="txt" placeholder='Say or type: "2 eggs and 600g chicken, expires Friday"'>
+      <button class="btn" id="add">Add</button>
+    </form>
+    <div class="status" id="status">Tap the mic and list what you bought: name, how many (or weight), and when it expires.</div>
+  </section>
+
+  <div class="board" id="board"></div>
+</div>
+
+<div class="panel actionbar" id="bar">
+  <span id="count"></span>
+  <button class="ghost" id="clear" type="button">Clear</button>
+  <button class="btn" id="gen" type="button">✨ Generate recipes</button>
+</div>
+
+<dialog id="dlg">
+  <div class="dh"><h2>Recipe ideas</h2><button class="ghost" id="dclose" type="button">Close</button></div>
+  <div id="dbody"></div>
+</dialog>
+
+<script src="/js/common.js"></script>
+<script src="/js/main.js"></script>
+</body>
+</html>

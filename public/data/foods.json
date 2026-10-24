@@ -1,0 +1,20 @@
+[
+  { "name": "egg", "kcal_per_100g": 143, "unit_g": 50 },
+  { "name": "chicken breast", "kcal_per_100g": 165, "unit_g": 170 },
+  { "name": "chicken thigh", "kcal_per_100g": 209, "unit_g": 110 },
+  { "name": "milk", "kcal_per_100g": 61, "unit_g": 240 },
+  { "name": "rice", "kcal_per_100g": 130, "unit_g": 150 },
+  { "name": "pasta", "kcal_per_100g": 131, "unit_g": 100 },
+  { "name": "tomato", "kcal_per_100g": 18, "unit_g": 120 },
+  { "name": "onion", "kcal_per_100g": 40, "unit_g": 110 },
+  { "name": "potato", "kcal_per_100g": 77, "unit_g": 170 },
+  { "name": "carrot", "kcal_per_100g": 41, "unit_g": 60 },
+  { "name": "spinach", "kcal_per_100g": 23, "unit_g": 30 },
+  { "name": "cheddar cheese", "kcal_per_100g": 403, "unit_g": 28 },
+  { "name": "butter", "kcal_per_100g": 717, "unit_g": 14 },
+  { "name": "banana", "kcal_per_100g": 89, "unit_g": 118 },
+  { "name": "apple", "kcal_per_100g": 52, "unit_g": 180 },
+  { "name": "salmon", "kcal_per_100g": 208, "unit_g": 150 },
+  { "name": "beef mince", "kcal_per_100g": 250, "unit_g": 100 },
+  { "name": "bread", "kcal_per_100g": 265, "unit_g": 35 }
+]
