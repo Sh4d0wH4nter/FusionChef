@@ -1,0 +1,406 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>FusionChef Explained</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column with wide diagram bands; sticky section index on desktop. */
+:root{
+  --bg:#f2f5f3; --surface:#ffffff; --fg:#13211c; --muted:#56655f; --line:#d8e0dc;
+  --accent:#0d7a68; --accent-soft:#dcefe9;
+  --ok:#2f8f4e; --soon:#c98a0b; --now:#c8402f;
+  --ok-soft:#e1f1e6; --soon-soft:#f7ecd0; --now-soft:#f6dcd7;
+  --code:#eaefec;
+  --display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --body:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1714; --surface:#16231f; --fg:#e6efeb; --muted:#9bb0a8; --line:#27382f;
+  --accent:#4fc6ad; --accent-soft:#17342d;
+  --ok:#6cc58a; --soon:#e5b445; --now:#ee7b6a;
+  --ok-soft:#183324; --soon-soft:#3a2f12; --now-soft:#3d1d19; --code:#1d2d27; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1714; --surface:#16231f; --fg:#e6efeb; --muted:#9bb0a8; --line:#27382f;
+  --accent:#4fc6ad; --accent-soft:#17342d;
+  --ok:#6cc58a; --soon:#e5b445; --now:#ee7b6a;
+  --ok-soft:#183324; --soon-soft:#3a2f12; --now-soft:#3d1d19; --code:#1d2d27; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--body);padding-block:0 72px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1080px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);line-height:1.1;text-wrap:balance;margin:0}
+h2{font-size:clamp(28px,4vw,40px);letter-spacing:-.02em;font-weight:700}
+h3{font-size:20px;font-weight:700;letter-spacing:-.01em}
+p{margin:0}
+code,.mono{font-family:var(--mono);font-size:.88em;background:var(--code);padding:.1em .4em;border-radius:4px}
+a{color:var(--accent)}
+.eyebrow{font:500 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.lead{font-size:18px;color:var(--muted);max-width:62ch}
+
+/* hero */
+header.hero{padding-block:56px 40px;display:grid;gap:20px}
+h1{font-size:clamp(44px,8vw,84px);letter-spacing:-.035em;font-weight:700}
+h1 span{color:var(--accent)}
+.stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:0}
+.stat b{display:block;font:700 22px/1.1 var(--display);font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-size:13px}
+
+/* nav */
+nav.idx{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-block:1px solid var(--line);margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px));overflow-x:auto;white-space:nowrap}
+nav.idx::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+nav.idx div{display:flex;gap:4px;max-width:1080px;margin:0 auto}
+nav.idx a{color:var(--muted);text-decoration:none;font-size:14px;padding:12px 10px;border-bottom:2px solid transparent}
+nav.idx a:hover,nav.idx a:focus-visible{color:var(--fg);border-color:var(--accent);outline:none}
+
+section{padding-block:64px 8px;display:grid;gap:24px;scroll-margin-top:48px}
+section>.head{display:grid;gap:12px}
+
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;min-width:0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:16px}
+.panel h3{margin-bottom:8px}
+.panel p+p{margin-top:8px}
+.panel ul{margin:8px 0 0;padding-left:18px}
+.panel li+li{margin-top:4px}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+
+/* architecture diagram */
+.arch{display:grid;grid-template-columns:1fr 64px 1fr 64px 1fr;align-items:stretch;gap:0}
+.node{background:var(--surface);border:1.5px solid var(--fg);border-radius:12px;padding:18px;min-width:0;display:grid;gap:6px;align-content:start}
+.node.ai{border-style:dashed}
+.node h3{font-size:18px}
+.node .tag{font:500 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+.node ul{margin:4px 0 0;padding-left:16px;font-size:14px;color:var(--muted)}
+.link{display:grid;place-items:center;font:500 11px/1.3 var(--mono);color:var(--muted);text-align:center;position:relative;padding:8px 0}
+.link::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1.5px solid var(--fg)}
+.link span{position:relative;background:var(--bg);padding:2px 4px}
+.store{margin-top:16px;background:var(--accent-soft);border:1.5px solid var(--accent);border-radius:12px;padding:16px 18px;display:grid;gap:4px}
+@media (max-width:760px){
+  .arch{grid-template-columns:1fr}
+  .link{height:44px}
+  .link::before{left:50%;right:auto;top:0;bottom:0;border-top:0;border-left:1.5px solid var(--fg)}
+}
+
+/* workflow */
+.steps{display:grid;gap:0;counter-reset:s;border-left:2px solid var(--line);margin-left:14px}
+.step{position:relative;padding:0 0 28px 28px;display:grid;gap:6px}
+.step:last-child{padding-bottom:0}
+.step::before{counter-increment:s;content:counter(s);position:absolute;left:-15px;top:0;width:28px;height:28px;border-radius:50%;background:var(--accent);color:var(--bg);font:700 14px/28px var(--display);text-align:center}
+.step h3{font-size:19px;padding-top:2px}
+.step .where{font:500 12px/1 var(--mono);color:var(--accent);letter-spacing:.04em}
+.step .more{display:grid;gap:8px;margin-top:6px}
+
+/* lanes */
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}
+.lane{border-radius:10px;padding:14px 16px;display:grid;gap:2px;border:1px solid var(--line)}
+.lane b{font-family:var(--display);font-size:18px}
+.lane small{color:var(--muted)}
+.lane.now{background:var(--now-soft);border-color:var(--now)}
+.lane.soon{background:var(--soon-soft);border-color:var(--soon)}
+.lane.ok{background:var(--ok-soft);border-color:var(--ok)}
+.lane code{justify-self:start;margin-top:4px}
+
+/* ladder */
+.ladder{display:grid;gap:10px}
+.rung{display:grid;grid-template-columns:36px 1fr;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.rung i{font:700 14px/28px var(--display);font-style:normal;width:28px;height:28px;border-radius:6px;background:var(--accent-soft);color:var(--accent);text-align:center}
+.rung.fail i{background:var(--now-soft);color:var(--now)}
+.rung b{display:block}
+.rung span{color:var(--muted);font-size:14px}
+
+/* tables */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14.5px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td:first-child{white-space:nowrap}
+
+pre{margin:0;background:var(--code);border-radius:10px;padding:14px 16px;overflow-x:auto;font:400 13px/1.55 var(--mono)}
+.tree{font-family:var(--mono);font-size:13.5px}
+
+.limits{display:grid;gap:10px;padding:0;margin:0;list-style:none}
+.limits li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:2px}
+.limits b{font-family:var(--display);font-size:17px}
+.limits span{color:var(--muted);font-size:15px}
+
+footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+<header class="hero">
+  <div class="eyebrow">Project walkthrough</div>
+  <h1>Fusion<span>Chef</span></h1>
+  <p class="lead">A kitchen expiry tracker with voice and typed input. It turns the food you pick into recipes from four different cuisines and keeps a running tally of the day's calories. This page explains how it is built and how a person uses it, based on the code on <code>main</code>.</p>
+  <div class="stats">
+    <div class="stat"><b>0</b><small>npm dependencies</small></div>
+    <div class="stat"><b>3</b><small>pages</small></div>
+    <div class="stat"><b>3</b><small>API endpoints</small></div>
+    <div class="stat"><b>~1,000</b><small>lines of code in total</small></div>
+    <div class="stat"><b>0</b><small>rows stored on the server</small></div>
+  </div>
+</header>
+
+<nav class="idx" aria-label="Sections"><div>
+  <a href="#architecture">Architecture</a><a href="#workflow">User workflow</a><a href="#ai">AI flow</a><a href="#data">Data</a><a href="#dev">Dev mode</a><a href="#files">Files</a><a href="#limits">Limits</a>
+</div></nav>
+
+<section id="architecture">
+  <div class="head">
+    <div class="eyebrow">How it is built</div>
+    <h2>A thin server, a plain front end, and the browser as the database</h2>
+    <p class="lead">The Node server does two jobs: it serves the static files and it forwards model requests so the OpenRouter key never reaches the browser. Everything the user owns lives in <code>localStorage</code>.</p>
+  </div>
+
+  <div class="arch" role="img" aria-label="Diagram: browser talks to Node server over HTTP, server talks to OpenRouter over HTTPS">
+    <div class="node">
+      <span class="tag">Browser</span>
+      <h3>Front end</h3>
+      <ul><li>Vanilla JS, no build step</li><li>Kitchen, Nutrition and Recipe pages</li><li>Shared helpers on <code>window.FC</code></li></ul>
+    </div>
+    <div class="link"><span>fetch<br>JSON</span></div>
+    <div class="node">
+      <span class="tag">Node 18+ · server.js</span>
+      <h3>Stateless server</h3>
+      <ul><li>Serves <code>/public</code></li><li><code>POST /api/parse</code></li><li><code>POST /api/recipes</code></li><li><code>GET /api/capabilities</code></li><li>Prompts, validation, retries</li></ul>
+    </div>
+    <div class="link"><span>HTTPS<br>Bearer key</span></div>
+    <div class="node ai">
+      <span class="tag">External</span>
+      <h3>OpenRouter</h3>
+      <ul><li>Chat completions API</li><li>Free model by default</li><li>Optional fallback models</li></ul>
+    </div>
+  </div>
+  <div class="store">
+    <b>Browser <code>localStorage</code></b>
+    <span class="muted small">Items, saved recipes, calorie log, calorie goal and the dev-mode day offset. Per browser and per address. Nothing is synced and the server never sees it, apart from the ingredient names and typed text sent to the model.</span>
+  </div>
+
+  <div class="grid3">
+    <div class="panel"><h3>Server</h3><p class="small muted">Plain <code>http.createServer</code>. A tiny <code>.env</code> parser loads config. Static files are guarded against path traversal. The three API routes are a handler table keyed by path; errors come back as <code>500 {error}</code> so the UI can show them.</p></div>
+    <div class="panel"><h3>Front end</h3><p class="small muted">Each page is an IIFE that reads from <code>FC.load</code>, renders with template strings and saves with <code>FC.save</code>. All model and user text goes through <code>FC.esc</code> before it reaches <code>innerHTML</code>. Styling is one CSS file with light and dark variables.</p></div>
+    <div class="panel"><h3>Configuration</h3><p class="small muted">Set <code>OPENROUTER_API_KEY</code> to switch the AI on. Optional: <code>OPENROUTER_MODEL</code>, <code>OPENROUTER_FALLBACK_MODELS</code>, <code>OPENROUTER_AUDIO_MODEL</code>, <code>OPENROUTER_MAX_TOKENS</code>, <code>PORT</code>. <code>npm run check</code> makes one real parse call to verify the key.</p></div>
+  </div>
+</section>
+
+<section id="workflow">
+  <div class="head">
+    <div class="eyebrow">What a person does</div>
+    <h2>From a full fridge to a logged meal</h2>
+    <p class="lead">The whole loop runs in three screens. The only step that needs the network is the AI call.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <span class="where">Kitchen page</span>
+      <h3>Add food by voice or text</h3>
+      <p class="muted">Type “two eggs and 500g chicken breast, expires Friday” or tap the mic. With no audio model configured, the mic uses the browser's speech recognition and sends the transcript down the same path as typed text. If audio upload is configured it records with MediaRecorder instead.</p>
+    </div>
+    <div class="step">
+      <span class="where">Server → model</span>
+      <h3>The model turns the sentence into items</h3>
+      <p class="muted"><code>/api/parse</code> asks for one object per food: name, count, weight in grams and an expiry date. Relative dates like “Friday” are resolved against today's date, and anything not said stays <code>null</code>.</p>
+    </div>
+    <div class="step">
+      <span class="where">Browser</span>
+      <h3>Defaults fill the gaps</h3>
+      <p class="muted">Missing amounts and shelf lives come from <code>defaults.json</code> (eggs become a carton of 6, milk a 1 L carton). With no match the shelf life is 7 days. Anything the user said wins, and guessed expiries are flagged so the status line tells them to check.</p>
+    </div>
+    <div class="step">
+      <span class="where">Kitchen page</span>
+      <h3>Cards sort themselves by urgency</h3>
+      <p class="muted">Each item is a card with a countdown ring and sits in one of three lanes. The user can edit a card's name, amount and use-by date, or remove it.</p>
+      <div class="lanes more">
+        <div class="lane now"><b>Eat now</b><small>Past date or 2 days or fewer</small><code>days ≤ 2</code></div>
+        <div class="lane soon"><b>Use soon</b><small>3 to 7 days left</small><code>3 – 7</code></div>
+        <div class="lane ok"><b>Plenty of time</b><small>More than a week</small><code>&gt; 7</code></div>
+      </div>
+    </div>
+    <div class="step">
+      <span class="where">Kitchen page</span>
+      <h3>Select ingredients and generate</h3>
+      <p class="muted">Tapping cards selects them and a bottom bar appears. <strong>Generate</strong> opens a dialog and calls <code>/api/recipes</code> with the chosen names and quantities. The server asks for four recipes, each from a different cuisine, and only returns them if at least two pass the sanity checks.</p>
+    </div>
+    <div class="step">
+      <span class="where">Recipe dialog</span>
+      <h3>Pick favourites and save</h3>
+      <p class="muted">Each result shows title, cuisine, summary, calories, total time and servings. The user ticks the ones to keep, or taps <em>Generate more</em> to ask again. Saved recipes get an id and a saved-on date and are stored in the browser.</p>
+    </div>
+    <div class="step">
+      <span class="where">Nutrition page</span>
+      <h3>Track the day</h3>
+      <p class="muted">A calorie ring shows kcal eaten against the goal (default 2000, minimum 500), with protein, carbs and fat bars. Meals can be logged by hand. Saved recipes appear as tiles with their macros.</p>
+    </div>
+    <div class="step">
+      <span class="where">Recipe page</span>
+      <h3>Cook, then log it</h3>
+      <p class="muted">A tile opens <code>/recipe.html?id=…</code> in a new tab: ingredients and method on the left, per-serving nutrition and timings on the right. Entering servings eaten and pressing <strong>Add to today's calories</strong> writes a log entry scaled by that number. The Nutrition tab picks it up through the <code>storage</code> event without a reload.</p>
+    </div>
+  </div>
+</section>
+
+<section id="ai">
+  <div class="head">
+    <div class="eyebrow">The AI flow</div>
+    <h2>Ask for JSON, then do not trust it</h2>
+    <p class="lead">Free models are slow to answer, rate limited and sometimes wrong, so the server wraps every call in the same ladder: try a model, try it again in a looser mode, then move to the next model. Nothing reaches the UI until it passes validation.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3>Parse: text to items</h3>
+      <p class="small muted">Prompt contains today's date and rules: singular lowercase names, grams for kg/oz/lb, 1 litre of liquid = 1000 g, a dozen = 12, never invent a quantity or expiry. Schema: array of <code>{name, count, weight_g, expiry}</code> with only <code>name</code> required.</p>
+      <p class="small muted"><b>Validator:</b> keep entries that have a non-empty string name. An empty list fails the attempt.</p>
+    </div>
+    <div class="panel">
+      <h3>Recipes: items to four ideas</h3>
+      <p class="small muted">Prompt asks for real dishes, one per cuisine, proper cooking methods, at least four steps and realistic nutrition per serving. Pantry staples (oil, salt, spices, flour, stock) are assumed available.</p>
+      <p class="small muted"><b>Validator:</b> <code>sane()</code> per recipe, and at least two must pass.</p>
+    </div>
+  </div>
+
+  <div>
+    <h3 style="margin-bottom:12px">The attempt ladder (<code>askJSON</code>)</h3>
+    <div class="ladder">
+      <div class="rung"><i>1</i><div><b>Main model, structured output</b><span>Sends a <code>json_schema</code> <code>response_format</code>, low reasoning effort (so reasoning models do not spend the whole token budget thinking) and temperature 0.4.</span></div></div>
+      <div class="rung"><i>2</i><div><b>Same model, plain text</b><span>Used when the model rejects schemas, returns an empty reply or fails validation. Models that reject JSON mode are remembered and skip step 1 from then on.</span></div></div>
+      <div class="rung"><i>3</i><div><b>Next fallback model</b><span>Repeats steps 1 and 2 for each id in <code>OPENROUTER_FALLBACK_MODELS</code>, in order.</span></div></div>
+      <div class="rung fail"><i>✕</i><div><b>Give up</b><span>Returns one error listing every attempt. The UI shows it in the status line or the dialog.</span></div></div>
+    </div>
+    <p class="small muted" style="margin-top:12px">Every reply is parsed leniently: code fences are stripped and the longest valid JSON value in the text wins, so a stray “[1]” in a preamble cannot beat the real answer. Each attempt logs <code>[ai] ok: &lt;model&gt;</code> or <code>[ai] failed: &lt;model&gt;: &lt;reason&gt;</code>.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3>Transport retries</h3>
+      <p class="small muted">Inside each attempt, <code>post()</code> retries up to four times with exponential backoff on HTTP 429, 502, 503 and 504 and on network errors. It honours <code>Retry-After</code> (capped at 20 seconds) and each request times out after 180 seconds. Errors OpenRouter hides inside a 200 response are surfaced too.</p>
+    </div>
+    <div class="panel">
+      <h3>Voice path</h3>
+      <p class="small muted"><code>/api/capabilities</code> tells the page whether an audio model is set. If not, the browser transcribes and the text goes to the normal parse. If it is, audio is sent as base64 to that one model, and a missing audio model gives a clear error rather than a silent failure.</p>
+    </div>
+  </div>
+
+  <div>
+    <h3 style="margin-bottom:12px">What makes a recipe “sensible”</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Check</th><th>Rule</th></tr></thead>
+      <tbody>
+        <tr><td>Completeness</td><td>Has a title, at least 3 steps and at least 2 ingredients</td></tr>
+        <tr><td>Calories</td><td>Calories, protein, carbs and fat are all numbers, and calories are between 50 and 1800</td></tr>
+        <tr><td>Macro maths</td><td>4 × protein + 4 × carbs + 9 × fat must land within 50% to 160% of the stated calories</td></tr>
+        <tr><td>Plausibility</td><td>1 to 12 servings, prep at most 240 minutes, cook at most 480 minutes</td></tr>
+        <tr><td>Uses your food</td><td>At least half the ingredient lines mention something the user picked or a common pantry item</td></tr>
+        <tr><td>Overall</td><td>Fewer than two recipes passing means the attempt fails and the ladder continues</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section id="data">
+  <div class="head">
+    <div class="eyebrow">Where things live</div>
+    <h2>Data and storage</h2>
+    <p class="lead">All writes go through <code>FC.save</code>, which wraps <code>localStorage</code> in a try/catch so a blocked store never crashes a page.</p>
+  </div>
+
+  <div class="tw"><table>
+    <thead><tr><th>Key</th><th>Holds</th><th>Written by</th></tr></thead>
+    <tbody>
+      <tr><td><code>fc.items</code></td><td>Kitchen items</td><td>Kitchen page</td></tr>
+      <tr><td><code>fc.recipes</code></td><td>Saved recipes with id and saved-on date</td><td>Recipe dialog, deleted from Nutrition</td></tr>
+      <tr><td><code>fc.log</code></td><td>Calorie log entries: date, name, kcal, protein, carbs, fat</td><td>Nutrition and Recipe pages</td></tr>
+      <tr><td><code>fc.goal</code></td><td>Daily calorie goal</td><td>Nutrition page</td></tr>
+      <tr><td><code>fc.dayoffset</code></td><td>Demo days added to today</td><td>Dev mode</td></tr>
+      <tr><td><code>fc.dev</code></td><td>Whether dev mode is on</td><td>Kitchen page (set directly)</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h3>An item</h3>
+<pre>{
+  id, name, count, weight_g,
+  pack,     // "carton of 6": display label
+  food,     // matched row in foods.json
+  added, expires,  // YYYY-MM-DD
+  guessed   // true if expiry was defaulted
+}</pre>
+      <p class="small muted" style="margin-top:10px">The <code>pack</code> label replaces the quantity text until the user edits the amount.</p>
+    </div>
+    <div class="panel">
+      <h3>Two small data files</h3>
+      <ul class="small">
+        <li><b><code>defaults.json</code></b> (20 entries): pack sizes, unit weights and shelf lives such as eggs 21 days, milk 7, chicken 2.</li>
+        <li><b><code>foods.json</code></b> (20 entries): kcal per 100 g and unit weight. Names are matched by token overlap, so “free range eggs” still finds “egg”. This gives each card its “≈ kcal” estimate.</li>
+      </ul>
+      <p class="small muted" style="margin-top:10px">Both are plain JSON that can be extended without touching code.</p>
+    </div>
+  </div>
+</section>
+
+<section id="dev">
+  <div class="head">
+    <div class="eyebrow">For demos</div>
+    <h2>Developer mode</h2>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <p>Tick <strong>Developer mode</strong> in the Kitchen footer to show a <strong>Next day ▶</strong> button. Each press adds a day to a stored offset, so cards drift from <em>Plenty of time</em> to <em>Use soon</em> to <em>Eat now</em> in front of an audience. <strong>Reset</strong> clears the offset, and turning dev mode off also resets it.</p>
+    </div>
+    <div class="panel">
+      <p class="small muted">The offset is applied in one place. The code calls <code>FC.today()</code> and <code>FC.now()</code> instead of <code>new Date()</code>, so the Nutrition page's “today” and the calorie log follow the demo date as well. The server's prompt still uses the real date.</p>
+    </div>
+  </div>
+</section>
+
+<section id="files">
+  <div class="head">
+    <div class="eyebrow">Orientation</div>
+    <h2>Where to look in the repo</h2>
+  </div>
+  <div class="grid2">
+    <pre class="tree">server.js          server, routes, AI calls
+public/
+  index.html       Kitchen
+  nutrition.html   Calories and saved recipes
+  recipe.html      One recipe (?id=)
+  js/common.js     storage, dates, matching, api()
+  js/main.js       Kitchen logic
+  js/nutrition.js  Nutrition logic
+  js/recipe.js     Recipe logic
+  css/style.css    all styling, light + dark
+  data/            foods.json, defaults.json
+test/              fake model servers</pre>
+    <div class="panel">
+      <h3>Testing</h3>
+      <p class="small muted"><code>npm test</code> starts the server against fake OpenRouter servers and checks request shape, schema and model fallback, the “no audio model” error, and that nonsense recipes are rejected. It does not test a real model, a browser or the microphone, and there is no committed UI test.</p>
+      <p class="small muted">Code style: 2-space indent, double quotes, semicolons, no dependencies.</p>
+    </div>
+  </div>
+</section>
+
+<section id="limits">
+  <div class="head">
+    <div class="eyebrow">Honest edges</div>
+    <h2>Known limits</h2>
+  </div>
+  <ul class="limits">
+    <li><b>Data is browser-only</b><span>No sync, backup or accounts. Clearing site data, or opening another browser or address, starts from empty.</span></li>
+    <li>
+      <b>Never verified against a real key from the build environment</b><span>Free models get rate limited (about 20 requests a minute), return empty replies or are retired. The <code>[ai]</code> log lines are the first place to look.</span></li>
+    <li><b>Small food database</b><span>Only 20 starter foods have calorie estimates, so many cards show no kcal figure.</span></li>
+    <li><b>Fixed macro targets</b><span>Nutrition bars use a 25 / 50 / 25 split of protein, carbs and fat and cannot be edited yet.</span></li>
+    <li><b>Cuisine choice is not in the UI</b><span>The recipe endpoint accepts a list of cuisines, but the Kitchen page does not send one, so the model picks a varied mix.</span></li>
+    <li><b>Legacy code remains</b><span>Unused Vertex AI and AI Studio paths still sit in <code>server.js</code> and are candidates for deletion.</span></li>
+    <li><b>Speech depends on the browser</b><span>The browser option works best in Chrome on localhost, and Safari needs Dictation turned on.</span></li>
+  </ul>
+  <footer>Based on FusionChef <code>main</code> (README and CLAUDE.md included). Describes the OpenRouter version only.</footer>
+</section>
+</div>
+
+</body></html>
