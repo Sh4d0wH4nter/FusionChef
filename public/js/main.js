@@ -172,7 +172,7 @@
   $("gen").onclick = async () => {
     const chosen = items.filter((i) => selected.has(i.id));
     generated = []; picked.clear();
-    $("dbody").innerHTML = `<p class="loading-line"><span class="spin"></span>Asking the AI for ideas using ${chosen.map((c) => esc(c.name)).join(", ")}… this can take up to a minute.</p>
+    $("dbody").innerHTML = `<p class="loading-line"><span class="spin"></span>Asking the AI for ideas using ${chosen.map((c) => esc(c.name)).join(", ")}… this can take up to a minute and a half.</p>
       <div class="rcards" aria-hidden="true">${'<div class="skel"></div>'.repeat(3)}</div>
       <button class="ghost" id="rcancel" type="button">Cancel</button><div style="height:24px"></div>`;
     const ctl = new AbortController();

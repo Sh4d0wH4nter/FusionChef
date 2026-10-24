@@ -37,9 +37,9 @@ const OR = env.OPENROUTER_API_KEY
   ? { key: env.OPENROUTER_API_KEY, base: (env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, ""),
       model: env.OPENROUTER_MODEL || OR_POOL[0],
       fallbacks: env.OPENROUTER_FALLBACK_MODELS ? env.OPENROUTER_FALLBACK_MODELS.split(",").map((x) => x.trim()).filter(Boolean) : OR_POOL.slice(1),
-      timeoutMs: Number(env.OPENROUTER_TIMEOUT_MS) || 25e3, // per model attempt
-      deadlineMs: Number(env.OPENROUTER_DEADLINE_MS) || 60e3, // whole request, then give up with a clear error
-      hedgeMs: Number(env.OPENROUTER_HEDGE_MS) || 10e3, // if the first model is still silent after this, start the next one in parallel
+      timeoutMs: Number(env.OPENROUTER_TIMEOUT_MS) || 45e3, // per model attempt
+      deadlineMs: Number(env.OPENROUTER_DEADLINE_MS) || 90e3, // whole request, then give up with a clear error
+      hedgeMs: Number(env.OPENROUTER_HEDGE_MS) || 15e3, // if the first model is still silent after this, start the next one in parallel
       parallel: Number(env.OPENROUTER_PARALLEL) || 2, coolMs: Number(env.OPENROUTER_COOLDOWN_MS) || 3 * 60e3,
       audioModel: env.OPENROUTER_AUDIO_MODEL || null, maxTokens: Number(env.OPENROUTER_MAX_TOKENS) || null,
       reasoning: env.OPENROUTER_REASONING || null, structured: env.OPENROUTER_STRUCTURED === "1" }
@@ -206,6 +206,13 @@ async function gemmaEndpoint(model, parts, schema) {
 
 // OpenRouter chat completions. Structured output via response_format json_schema (not every model supports it;
 // askJSON then retries without). Audio goes as OpenAI-style input_audio parts.
+// OpenRouter wraps upstream failures as "Provider returned error"; the useful detail is in error.metadata (raw text, provider name).
+const orDetail = (e) => {
+  const m = e?.metadata || {};
+  let raw = m.raw; if (raw && typeof raw === "object") raw = raw.error?.message || raw.message || JSON.stringify(raw);
+  return [e?.message || "error", m.provider_name && `via ${m.provider_name}`, raw && String(raw).slice(0, 200), e?.code && `code ${e.code}`].filter(Boolean).join(" · ");
+};
+const orKind = (code) => (Number(code) === 429 ? "rate" : Number(code) >= 500 ? "server" : "bad");
 class AIError extends Error { constructor(msg, kind) { super(msg); this.kind = kind; } } // kind: timeout | rate | server | aborted | bad
 // One OpenRouter call with its own timeout; `signal` lets the orchestrator cancel it once another model has won.
 async function orPost(body, signal) {
@@ -219,7 +226,7 @@ async function orPost(body, signal) {
       headers: { "content-type": "application/json", authorization: `Bearer ${OR.key}`, "x-title": "FusionChef" }, body: JSON.stringify(body) });
     const raw = await r.text();
     let j; try { j = JSON.parse(raw); } catch { j = { error: { message: raw.slice(0, 300) } }; }
-    if (!r.ok) throw new AIError(j.error?.message || `HTTP ${r.status}`, r.status === 429 ? "rate" : r.status >= 500 ? "server" : "bad");
+    if (!r.ok) throw new AIError(j.error ? orDetail(j.error) : `HTTP ${r.status}`, r.status === 429 ? "rate" : r.status >= 500 ? "server" : "bad");
     return j;
   } catch (e) {
     if (e instanceof AIError) throw e;
@@ -239,9 +246,9 @@ async function gemmaOpenRouter(model, parts, schema, signal) {
   if (schema) body.response_format = { type: "json_schema", json_schema: { name: "result", strict: false, schema: toJsonSchema(schema) } };
   const j = await orPost(body, signal);
   // OpenRouter can answer HTTP 200 with an error object (e.g. upstream provider failure).
-  if (j.error && !j.choices) throw new Error(j.error.message || JSON.stringify(j.error).slice(0, 300));
+  if (j.error && !j.choices) throw new AIError(orDetail(j.error), orKind(j.error.code));
   const c = j.choices?.[0];
-  if (c?.error) throw new Error(c.error.message || "provider error");
+  if (c?.error) throw new AIError(orDetail(c.error), orKind(c.error.code));
   return { text: String(c?.message?.content ?? ""), finish: c?.finish_reason || "unknown", nparts: c ? 1 : 0 };
 }
 
@@ -323,7 +330,7 @@ function askJSONOR(models, parts, schema, validate) {
       const model = order[next++]; running++;
       timers.push(setTimeout(() => { if (!done && running < OR.parallel) launch(); }, OR.hedgeMs));
       orTry(model, parts, schema, validate, ctl.signal).then((out) => end(resolve, out), (e) => {
-        running--; errs.push(`${model}: ${e.message.slice(0, 120)}`);
+        running--; errs.push(`${model}: ${e.message.slice(0, 220)}`);
         if (!done && !launch() && running === 0) end(reject, new Error(`No model could answer right now. ${errs.join(" | ")}`));
       });
       return true;
