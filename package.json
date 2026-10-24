@@ -1,0 +1,8 @@
+{
+  "name": "fusionchef",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Expiry tracker, voice ingredient input and AI recipe generation (OpenRouter)",
+  "scripts": { "start": "node server.js", "check": "node server.js --check", "test": "node test/fake-endpoint.test.js" },
+  "engines": { "node": ">=18" }
+}

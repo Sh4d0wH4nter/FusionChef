@@ -1,0 +1,22 @@
+[
+  {"names": ["egg"], "label": "carton of 6", "count": 6, "unit_g": 50, "shelf_days": 21},
+  {"names": ["milk"], "label": "1 L carton", "total_g": 1000, "shelf_days": 7},
+  {"names": ["chicken leg", "chicken drumstick"], "unit_g": 250, "count": 1, "weigh": true, "shelf_days": 2},
+  {"names": ["chicken breast"], "unit_g": 170, "count": 2, "weigh": true, "shelf_days": 2},
+  {"names": ["chicken thigh"], "unit_g": 110, "count": 4, "weigh": true, "shelf_days": 2},
+  {"names": ["salmon"], "unit_g": 120, "count": 2, "weigh": true, "shelf_days": 2},
+  {"names": ["beef mince", "mince"], "label": "500 g pack", "total_g": 500, "shelf_days": 2},
+  {"names": ["bread"], "label": "loaf", "total_g": 800, "shelf_days": 5},
+  {"names": ["butter"], "label": "250 g block", "total_g": 250, "shelf_days": 60},
+  {"names": ["cheese"], "label": "200 g block", "total_g": 200, "shelf_days": 30},
+  {"names": ["yoghurt", "yogurt"], "label": "500 g pot", "total_g": 500, "shelf_days": 10},
+  {"names": ["rice"], "label": "1 kg bag", "total_g": 1000, "shelf_days": 365},
+  {"names": ["pasta"], "label": "500 g bag", "total_g": 500, "shelf_days": 365},
+  {"names": ["banana"], "label": "bunch of 5", "count": 5, "unit_g": 120, "shelf_days": 5},
+  {"names": ["apple"], "label": "bag of 6", "count": 6, "unit_g": 180, "shelf_days": 14},
+  {"names": ["tomato"], "count": 4, "unit_g": 120, "shelf_days": 7},
+  {"names": ["onion"], "count": 3, "unit_g": 110, "shelf_days": 30},
+  {"names": ["potato"], "label": "1 kg bag", "total_g": 1000, "shelf_days": 21},
+  {"names": ["carrot"], "label": "500 g bag", "total_g": 500, "shelf_days": 21},
+  {"names": ["spinach"], "label": "200 g bag", "total_g": 200, "shelf_days": 5}
+]

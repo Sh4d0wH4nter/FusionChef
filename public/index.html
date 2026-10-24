@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FusionChef</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>Fusion<span>Chef</span></h1><div class="sub" id="date"></div></div>
+    <div class="chips" id="chips"></div>
+    <div id="nav"></div>
+  </header>
+
+  <section class="panel inbar">
+    <button class="mic" id="mic" type="button" title="Tap to record, tap again to add" aria-label="Record ingredients">🎙</button>
+    <form id="f" autocomplete="off">
+      <input id="txt" placeholder='Say or type: "2 eggs and 600g chicken, expires Friday"'>
+      <button class="btn" id="add">Add</button>
+    </form>
+    <div class="status" id="status">Tap the mic and list what you bought: name, how many (or weight), and when it expires.</div>
+  </section>
+
+  <div class="board" id="board"></div>
+</div>
+
+<div class="panel actionbar" id="bar">
+  <span id="count"></span>
+  <button class="ghost" id="clear" type="button">Clear</button>
+  <button class="btn" id="gen" type="button">✨ Generate recipes</button>
+</div>
+
+<dialog id="dlg">
+  <div class="dh"><h2>Recipe ideas</h2><button class="ghost" id="dclose" type="button">Close</button></div>
+  <div id="dbody"></div>
+</dialog>
+
+<dialog id="edlg" style="width:min(420px,94vw)">
+  <form id="eform" method="dialog" style="display:grid;gap:10px">
+    <h2 style="margin:0">Edit item</h2>
+    <label>Name <input id="e-name" required></label>
+    <label>Count <input id="e-count" type="number" min="0" step="any"></label>
+    <label>Weight (grams) <input id="e-weight" type="number" min="0" step="any"></label>
+    <label>Use by <input id="e-exp" type="date" required></label>
+    <div><button class="btn" type="submit">Save</button> <button class="ghost" id="e-cancel" type="button">Cancel</button></div>
+  </form>
+</dialog>
+
+<footer style="margin:28px 0 12px;font-size:12px;color:var(--mute);text-align:center">
+  <label><input type="checkbox" id="devtoggle"> Developer mode</label>
+  <span id="devbox" hidden> · <span id="devinfo"></span> <button class="ghost" id="nextday" type="button">Next day ▶</button> <button class="ghost" id="resetday" type="button">Reset</button></span>
+</footer>
+
+<script src="/js/common.js"></script>
+<script src="/js/main.js"></script>
+</body>
+</html>
