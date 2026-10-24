@@ -140,7 +140,7 @@ footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:v
     <div class="stat"><b>0</b><small>npm dependencies</small></div>
     <div class="stat"><b>3</b><small>pages</small></div>
     <div class="stat"><b>3</b><small>API endpoints</small></div>
-    <div class="stat"><b>~1,000</b><small>lines of code in total</small></div>
+    <div class="stat"><b>~1,450</b><small>lines of code in total</small></div>
     <div class="stat"><b>0</b><small>rows stored on the server</small></div>
   </div>
 </header>
@@ -166,13 +166,13 @@ footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:v
     <div class="node">
       <span class="tag">Node 18+ · server.js</span>
       <h3>Stateless server</h3>
-      <ul><li>Serves <code>/public</code></li><li><code>POST /api/parse</code></li><li><code>POST /api/recipes</code></li><li><code>GET /api/capabilities</code></li><li>Prompts, validation, retries</li></ul>
+      <ul><li>Serves <code>/public</code></li><li><code>POST /api/parse</code></li><li><code>POST /api/recipes</code></li><li><code>GET /api/capabilities</code></li><li>Prompts, validation, model racing</li></ul>
     </div>
     <div class="link"><span>HTTPS<br>Bearer key</span></div>
     <div class="node ai">
       <span class="tag">External</span>
       <h3>OpenRouter</h3>
-      <ul><li>Chat completions API</li><li>Free model by default</li><li>Optional fallback models</li></ul>
+      <ul><li>Chat completions API</li><li>Pool of free models by default</li><li>Or one paid model via <code>OPENROUTER_MODEL</code></li></ul>
     </div>
   </div>
   <div class="store">
@@ -182,8 +182,8 @@ footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:v
 
   <div class="grid3">
     <div class="panel"><h3>Server</h3><p class="small muted">Plain <code>http.createServer</code>. A tiny <code>.env</code> parser loads config. Static files are guarded against path traversal. The three API routes are a handler table keyed by path; errors come back as <code>500 {error}</code> so the UI can show them.</p></div>
-    <div class="panel"><h3>Front end</h3><p class="small muted">Each page is an IIFE that reads from <code>FC.load</code>, renders with template strings and saves with <code>FC.save</code>. All model and user text goes through <code>FC.esc</code> before it reaches <code>innerHTML</code>. Styling is one CSS file with light and dark variables.</p></div>
-    <div class="panel"><h3>Configuration</h3><p class="small muted">Set <code>OPENROUTER_API_KEY</code> to switch the AI on. Optional: <code>OPENROUTER_MODEL</code>, <code>OPENROUTER_FALLBACK_MODELS</code>, <code>OPENROUTER_AUDIO_MODEL</code>, <code>OPENROUTER_MAX_TOKENS</code>, <code>PORT</code>. <code>npm run check</code> makes one real parse call to verify the key.</p></div>
+    <div class="panel"><h3>Front end</h3><p class="small muted">Each page is an IIFE that reads from <code>FC.load</code>, renders with template strings and saves with <code>FC.save</code>. All model and user text goes through <code>FC.esc</code> before it reaches <code>innerHTML</code>. Styling is one CSS file built on design tokens, with light and dark themes, a layout that adapts down to 320px, and bottom-sheet dialogs on phones.</p></div>
+    <div class="panel"><h3>Configuration</h3><p class="small muted">Set <code>OPENROUTER_API_KEY</code> to switch the AI on. That is the only required line in <code>.env.example</code>. Optional: <code>OPENROUTER_MODEL</code>, <code>OPENROUTER_FALLBACK_MODELS</code>, <code>OPENROUTER_AUDIO_MODEL</code>, time limits, <code>PORT</code>. <code>npm run check</code> makes one real parse call to verify the key.</p></div>
   </div>
 </section>
 
@@ -223,7 +223,7 @@ footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:v
     <div class="step">
       <span class="where">Kitchen page</span>
       <h3>Select ingredients and generate</h3>
-      <p class="muted">Tapping cards selects them and a bottom bar appears. <strong>Generate</strong> opens a dialog and calls <code>/api/recipes</code> with the chosen names and quantities. The server asks for four recipes, each from a different cuisine, and only returns them if at least two pass the sanity checks.</p>
+      <p class="muted">Tapping cards selects them and a bottom bar appears. <strong>Generate</strong> opens a dialog and calls <code>/api/recipes</code> with the chosen names and quantities. The server asks for four recipes, each from a different cuisine, and only returns them if at least two pass the sanity checks. While it waits, the dialog shows a Cancel button, and a failure offers Try again.</p>
     </div>
     <div class="step">
       <span class="where">Recipe dialog</span>
@@ -247,7 +247,7 @@ footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:v
   <div class="head">
     <div class="eyebrow">The AI flow</div>
     <h2>Ask for JSON, then do not trust it</h2>
-    <p class="lead">Free models are slow to answer, rate limited and sometimes wrong, so the server wraps every call in the same ladder: try a model, try it again in a looser mode, then move to the next model. Nothing reaches the UI until it passes validation.</p>
+    <p class="lead">Free models are often rate limited, slow to answer and sometimes wrong, so the server races a pool of models and takes the first answer that passes validation. Nothing reaches the UI before that.</p>
   </div>
 
   <div class="grid2">
@@ -264,20 +264,21 @@ footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:v
   </div>
 
   <div>
-    <h3 style="margin-bottom:12px">The attempt ladder (<code>askJSON</code>)</h3>
+    <h3 style="margin-bottom:12px">The model race (<code>askJSONOR</code>)</h3>
     <div class="ladder">
-      <div class="rung"><i>1</i><div><b>Main model, structured output</b><span>Sends a <code>json_schema</code> <code>response_format</code>, low reasoning effort (so reasoning models do not spend the whole token budget thinking) and temperature 0.4.</span></div></div>
-      <div class="rung"><i>2</i><div><b>Same model, plain text</b><span>Used when the model rejects schemas, returns an empty reply or fails validation. Models that reject JSON mode are remembered and skip step 1 from then on.</span></div></div>
-      <div class="rung"><i>3</i><div><b>Next fallback model</b><span>Repeats steps 1 and 2 for each id in <code>OPENROUTER_FALLBACK_MODELS</code>, in order.</span></div></div>
-      <div class="rung fail"><i>✕</i><div><b>Give up</b><span>Returns one error listing every attempt. The UI shows it in the status line or the dialog.</span></div></div>
+      <div class="rung"><i>1</i><div><b>Order the pool by speed</b><span>The model list is <code>OPENROUTER_MODEL</code> followed by the fallbacks, or a built-in pool of seven free models. Models are sorted by the latency measured so far, and any on a cool-down go last.</span></div></div>
+      <div class="rung"><i>2</i><div><b>Start the fastest, hedge if it is slow</b><span>If the first model is still silent after 15 seconds, the next one starts alongside it (up to 2 at once). A model that fails is replaced straight away.</span></div></div>
+      <div class="rung"><i>3</i><div><b>First valid answer wins</b><span>Each reply is parsed and validated. The first one to pass is returned and the other requests are aborted.</span></div></div>
+      <div class="rung"><i>4</i><div><b>Sideline the failures</b><span>Timeouts, rate limits (429) and server errors put a model on a 3 minute cool-down. A reply that was empty or failed validation sidelines it for 1 minute.</span></div></div>
+      <div class="rung fail"><i>✕</i><div><b>Give up</b><span>After 90 seconds overall, or when every model has failed, the server returns one readable error listing what each provider said. The UI shows it in the status line or the dialog.</span></div></div>
     </div>
-    <p class="small muted" style="margin-top:12px">Every reply is parsed leniently: code fences are stripped and the longest valid JSON value in the text wins, so a stray “[1]” in a preamble cannot beat the real answer. Each attempt logs <code>[ai] ok: &lt;model&gt;</code> or <code>[ai] failed: &lt;model&gt;: &lt;reason&gt;</code>.</p>
+    <p class="small muted" style="margin-top:12px">Every reply is parsed leniently: code fences are stripped and the longest valid JSON value in the text wins, so a stray “[1]” in a preamble cannot beat the real answer. Logs show <code>[ai] ok: &lt;model&gt; in 3.2s</code> or <code>[ai] failed: &lt;model&gt; after 45.0s: &lt;reason&gt;</code>.</p>
   </div>
 
   <div class="grid2">
     <div class="panel">
-      <h3>Transport retries</h3>
-      <p class="small muted">Inside each attempt, <code>post()</code> retries up to four times with exponential backoff on HTTP 429, 502, 503 and 504 and on network errors. It honours <code>Retry-After</code> (capped at 20 seconds) and each request times out after 180 seconds. Errors OpenRouter hides inside a 200 response are surfaced too.</p>
+      <h3>Requests and time limits</h3>
+      <p class="small muted">Requests are kept plain, as in the sibling Cookbook-Maker-v2 app: model, temperature and messages. Structured output, a token cap and reasoning effort are opt-in through env vars because some free providers reject or stall on them. There are no same-model retries. Each call gets 45 seconds, the whole request 90 seconds, and the browser gives up at 105 seconds. Errors OpenRouter hides inside a 200 response are surfaced as readable messages.</p>
     </div>
     <div class="panel">
       <h3>Voice path</h3>
@@ -295,7 +296,7 @@ footer{margin-top:72px;padding-top:20px;border-top:1px solid var(--line);color:v
         <tr><td>Macro maths</td><td>4 × protein + 4 × carbs + 9 × fat must land within 50% to 160% of the stated calories</td></tr>
         <tr><td>Plausibility</td><td>1 to 12 servings, prep at most 240 minutes, cook at most 480 minutes</td></tr>
         <tr><td>Uses your food</td><td>At least half the ingredient lines mention something the user picked or a common pantry item</td></tr>
-        <tr><td>Overall</td><td>Fewer than two recipes passing means the attempt fails and the ladder continues</td></tr>
+        <tr><td>Overall</td><td>Fewer than two recipes passing means that model's answer is rejected and the race moves on</td></tr>
       </tbody>
     </table></div>
   </div>
@@ -392,14 +393,14 @@ test/              fake model servers</pre>
   <ul class="limits">
     <li><b>Data is browser-only</b><span>No sync, backup or accounts. Clearing site data, or opening another browser or address, starts from empty.</span></li>
     <li>
-      <b>Never verified against a real key from the build environment</b><span>Free models get rate limited (about 20 requests a minute), return empty replies or are retired. The <code>[ai]</code> log lines are the first place to look.</span></li>
+      <b>Free models are often rate limited</b><span>The free tier allows about 20 requests a minute, and free models can stall, return empty replies or be retired. The race and cool-downs soften this but cannot remove it. Adam runs a paid model locally by setting <code>OPENROUTER_MODEL</code>, which avoids most of it. The code was also never verified against a real key from the build environment, so the <code>[ai]</code> log lines are the first place to look.</span></li>
     <li><b>Small food database</b><span>Only 20 starter foods have calorie estimates, so many cards show no kcal figure.</span></li>
     <li><b>Fixed macro targets</b><span>Nutrition bars use a 25 / 50 / 25 split of protein, carbs and fat and cannot be edited yet.</span></li>
     <li><b>Cuisine choice is not in the UI</b><span>The recipe endpoint accepts a list of cuisines, but the Kitchen page does not send one, so the model picks a varied mix.</span></li>
     <li><b>Legacy code remains</b><span>Unused Vertex AI and AI Studio paths still sit in <code>server.js</code> and are candidates for deletion.</span></li>
     <li><b>Speech depends on the browser</b><span>The browser option works best in Chrome on localhost, and Safari needs Dictation turned on.</span></li>
   </ul>
-  <footer>Based on FusionChef <code>main</code> (README and CLAUDE.md included). Describes the OpenRouter version only.</footer>
+  <footer>Based on FusionChef <code>main</code> after PRs #3 to #5 (front-end redesign, model pool and racing, plain OpenRouter requests). Describes the OpenRouter version only.</footer>
 </section>
 </div>
 
