@@ -33,7 +33,7 @@ const OR = env.OPENROUTER_API_KEY
   ? { key: env.OPENROUTER_API_KEY, base: (env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, ""),
       model: env.OPENROUTER_MODEL || "nvidia/nemotron-3-super-120b-a12b:free",
       fallbacks: (env.OPENROUTER_FALLBACK_MODELS || "").split(",").map((x) => x.trim()).filter(Boolean),
-      audioModel: env.OPENROUTER_AUDIO_MODEL || null, maxTokens: Number(env.OPENROUTER_MAX_TOKENS) || 4096 }
+      audioModel: env.OPENROUTER_AUDIO_MODEL || null, maxTokens: Number(env.OPENROUTER_MAX_TOKENS) || 8192 }
   : null;
 const ENDPOINT = !OR && VERTEX && env.VERTEX_ENDPOINT_ID
   ? { id: env.VERTEX_ENDPOINT_ID, dns: env.VERTEX_ENDPOINT_DNS || null,
@@ -201,6 +201,7 @@ async function gemmaOpenRouter(model, parts, schema) {
   const hasAudio = parts.some((p) => p.inline_data);
   const body = { model, temperature: 0.4, max_tokens: OR.maxTokens,
     messages: [{ role: "user", content: hasAudio ? toChatContent(parts, "input_audio") : parts.map((p) => p.text).join("\n\n") }] };
+  body.reasoning = { effort: "low" }; // reasoning models otherwise burn max_tokens thinking and return an empty answer
   if (schema) body.response_format = { type: "json_schema", json_schema: { name: "result", strict: false, schema: toJsonSchema(schema) } };
   const j = await post(model, () => body);
   // OpenRouter can answer HTTP 200 with an error object (e.g. upstream provider failure).
@@ -250,10 +251,13 @@ async function askJSON(models, parts, schema, validate) {
       const tag = `${model}${sch ? " (schema)" : ""}`;
       try {
         const { text, finish, nparts } = await gemma(model, parts, sch);
-        if (!text.trim()) { problems.push(`${tag}: empty reply (finish=${finish}, parts=${nparts})`); continue; }
-        return validate(extractJSON(text));
+        if (!text.trim()) { problems.push(`${tag}: empty reply (finish=${finish}, parts=${nparts})`); console.warn(`[ai] failed: ${tag}: empty reply (finish=${finish})`); continue; }
+        const out = validate(extractJSON(text));
+        console.log(`[ai] ok: ${tag}`);
+        return out;
       } catch (e) {
         problems.push(`${tag}: ${e.message}`);
+        console.warn(`[ai] failed: ${tag}: ${e.message.slice(0, 200)}`);
         if (sch && /json mode|response_?mime|response_format|json_schema|guided|schema/i.test(e.message)) noSchema.add(model);
       }
     }
@@ -356,6 +360,10 @@ const BANNER = OR ? `OpenRouter, ${OR.model}${OR.audioModel ? ", audio " + OR.au
 if (process.argv.includes("--check")) {
   (async () => {
     console.log(`Backend: ${BANNER}`);
+    if (OR) await fetch(`${OR.base}/key`, { headers: { authorization: `Bearer ${OR.key}` } }).then((r) => r.json()).then((j) => {
+      const d = j.data || {};
+      console.log(`Key: free tier=${d.is_free_tier}, credits used=${d.usage}, limit=${d.limit ?? "none"}. (Free models: 20 requests/min; 50/day, or 1000/day once you have bought 10+ credits.)`);
+    }).catch(() => {});
     try {
       console.log("Text -> JSON:", JSON.stringify((await handlers["/api/parse"]({ text: "two eggs and 500g chicken breast, expires Friday" })).items));
       console.log("OK. (Voice/audio is not exercised by this check; try the mic in the app.)");
